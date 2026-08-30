@@ -25,15 +25,10 @@ abstract class ConstraintViolation with _$ConstraintViolation {
   /// Backends disagree on the wire format, so the common spellings are
   /// accepted: `field`, `propertyPath` or `name` for the field, and `message`,
   /// `defaultMessage` or `reason` for the text.
-  factory ConstraintViolation.fromJson(Map<String, dynamic> json) =>
-      ConstraintViolation(
-        field:
-            (json['field'] ?? json['propertyPath'] ?? json['name'] ?? '')
-                as String,
-        message:
-            (json['message'] ?? json['defaultMessage'] ?? json['reason'] ?? '')
-                as String,
-      );
+  factory ConstraintViolation.fromJson(Map<String, dynamic> json) => ConstraintViolation(
+    field: (json['field'] ?? json['propertyPath'] ?? json['name'] ?? '') as String,
+    message: (json['message'] ?? json['defaultMessage'] ?? json['reason'] ?? '') as String,
+  );
 
   /// The JSON representation of this violation.
   Map<String, dynamic> toJson() => {'field': field, 'message': message};
@@ -81,15 +76,7 @@ abstract class ProblemDetail with _$ProblemDetail {
   ///
   /// Violations are read from `violations` or `errors`, whichever is present.
   factory ProblemDetail.fromJson(Map<String, dynamic> json) {
-    const known = {
-      'type',
-      'title',
-      'status',
-      'detail',
-      'instance',
-      'violations',
-      'errors',
-    };
+    const known = {'type', 'title', 'status', 'detail', 'instance', 'violations', 'errors'};
     final rawViolations = json['violations'] ?? json['errors'];
     return ProblemDetail(
       type: json['type'] as String?,
@@ -98,10 +85,7 @@ abstract class ProblemDetail with _$ProblemDetail {
       detail: json['detail'] as String?,
       instance: json['instance'] as String?,
       violations: rawViolations is List
-          ? rawViolations
-                .whereType<Map<String, dynamic>>()
-                .map(ConstraintViolation.fromJson)
-                .toList(growable: false)
+          ? rawViolations.whereType<Map<String, dynamic>>().map(ConstraintViolation.fromJson).toList(growable: false)
           : const [],
       extensions: {
         for (final entry in json.entries)
@@ -119,9 +103,7 @@ abstract class ProblemDetail with _$ProblemDetail {
       return ProblemDetail.fromJson(body);
     }
     if (body is Map) {
-      return ProblemDetail.fromJson(
-        body.map((key, value) => MapEntry(key.toString(), value)),
-      );
+      return ProblemDetail.fromJson(body.map((key, value) => MapEntry(key.toString(), value)));
     }
     return null;
   }
@@ -141,8 +123,7 @@ abstract class ProblemDetail with _$ProblemDetail {
     'status': ?status,
     'detail': ?detail,
     'instance': ?instance,
-    if (violations.isNotEmpty)
-      'violations': violations.map((v) => v.toJson()).toList(growable: false),
+    if (violations.isNotEmpty) 'violations': violations.map((v) => v.toJson()).toList(growable: false),
     ...extensions,
   };
 }

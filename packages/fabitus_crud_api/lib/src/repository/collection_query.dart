@@ -16,11 +16,7 @@ typedef PropertyAccessor<T> = Object? Function(T entity, String property);
 /// directions, so an entity with a missing value stays at the bottom of a list
 /// when the user flips the sort order. Throws [CrudUnsupportedException] when a
 /// property holds values that cannot be compared.
-List<T> sortEntities<T>(
-  List<T> entities,
-  Sort sort,
-  PropertyAccessor<T> accessor,
-) {
+List<T> sortEntities<T>(List<T> entities, Sort sort, PropertyAccessor<T> accessor) {
   if (sort.isUnsorted || entities.length < 2) {
     return List<T>.unmodifiable(entities);
   }
@@ -76,10 +72,7 @@ Page<T> pageOf<T>(List<T> entities, PageRequest pageRequest) {
       size: size,
       totalElements: entities.length,
     ),
-    CursorPageRequest() => CursorPage<T>(
-      content: content,
-      nextCursor: end < entities.length ? '$end' : null,
-    ),
+    CursorPageRequest() => CursorPage<T>(content: content, nextCursor: end < entities.length ? '$end' : null),
   };
 }
 

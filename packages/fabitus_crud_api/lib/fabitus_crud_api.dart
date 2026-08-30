@@ -18,8 +18,7 @@ export 'src/error/problem_detail.dart';
 export 'src/paging/page.dart';
 export 'src/paging/page_request.dart';
 export 'src/paging/sort.dart';
-export 'src/repository/collection_query.dart'
-    show PropertyAccessor, jsonPropertyAccessor, pageOf, sortEntities;
+export 'src/repository/collection_query.dart' show PropertyAccessor, jsonPropertyAccessor, pageOf, sortEntities;
 export 'src/repository/crud_api.dart';
 export 'src/repository/crud_repository.dart';
 export 'src/repository/in_memory_crud_repository.dart';

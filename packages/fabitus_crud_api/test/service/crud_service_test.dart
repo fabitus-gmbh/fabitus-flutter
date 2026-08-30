@@ -19,9 +19,7 @@ void main() {
       final events = <CrudEvent<Todo>>[];
       service.events.listen(events.add);
 
-      final created = (await service.create(
-        const Todo(title: 'One'),
-      )).getOrThrow();
+      final created = (await service.create(const Todo(title: 'One'))).getOrThrow();
       await pumpEventQueue();
 
       expect(events, hasLength(1));
@@ -30,9 +28,7 @@ void main() {
     });
 
     test('emits an updated event', () async {
-      final created = (await service.create(
-        const Todo(title: 'One'),
-      )).getOrThrow();
+      final created = (await service.create(const Todo(title: 'One'))).getOrThrow();
       final events = <CrudEvent<Todo>>[];
       service.events.listen(events.add);
 
@@ -43,9 +39,7 @@ void main() {
     });
 
     test('emits a deleted event with the id', () async {
-      final created = (await service.create(
-        const Todo(title: 'One'),
-      )).getOrThrow();
+      final created = (await service.create(const Todo(title: 'One'))).getOrThrow();
       final events = <CrudEvent<Todo>>[];
       service.events.listen(events.add);
 
@@ -56,9 +50,7 @@ void main() {
     });
 
     test('delete(entity) emits the same event as deleteById', () async {
-      final created = (await service.create(
-        const Todo(title: 'One'),
-      )).getOrThrow();
+      final created = (await service.create(const Todo(title: 'One'))).getOrThrow();
       final events = <CrudEvent<Todo>>[];
       service.events.listen(events.add);
 
@@ -72,16 +64,11 @@ void main() {
       final events = <CrudEvent<Todo>>[];
       service.events.listen(events.add);
 
-      final created = (await service.save(
-        const Todo(title: 'One'),
-      )).getOrThrow();
+      final created = (await service.save(const Todo(title: 'One'))).getOrThrow();
       await service.save(created.copyWith(title: 'Two'));
       await pumpEventQueue();
 
-      expect(events, [
-        isA<CrudEntityCreated<Todo>>(),
-        isA<CrudEntityUpdated<Todo>>(),
-      ]);
+      expect(events, [isA<CrudEntityCreated<Todo>>(), isA<CrudEntityUpdated<Todo>>()]);
     });
 
     test('emits nothing when the operation fails', () async {
@@ -97,9 +84,7 @@ void main() {
     });
 
     test('forwards read operations to the delegate', () async {
-      final created = (await delegate.create(
-        const Todo(title: 'One'),
-      )).getOrThrow();
+      final created = (await delegate.create(const Todo(title: 'One'))).getOrThrow();
 
       expect((await service.findById(created.id!)).getOrThrow(), created);
       expect((await service.findAll()).getOrThrow(), [created]);
@@ -112,10 +97,7 @@ void main() {
 
       expect(service.isDisposed, isTrue);
       // Must not throw even though the controller is closed.
-      expect(
-        (await service.create(const Todo(title: 'One'))).isSuccess,
-        isTrue,
-      );
+      expect((await service.create(const Todo(title: 'One'))).isSuccess, isTrue);
     });
 
     test('the stream is a broadcast stream', () {
@@ -136,10 +118,7 @@ void main() {
     });
 
     test('the union constructors and the variant classes agree', () {
-      expect(
-        const CrudEvent<Todo>.deleted('1'),
-        const CrudEntityDeleted<Todo>('1'),
-      );
+      expect(const CrudEvent<Todo>.deleted('1'), const CrudEntityDeleted<Todo>('1'));
     });
   });
 
@@ -156,9 +135,7 @@ void main() {
       );
       addTearDown(service.dispose);
 
-      final page = (await service.findPage(
-        const OffsetPageRequest(size: 1),
-      )).getOrThrow();
+      final page = (await service.findPage(const OffsetPageRequest(size: 1))).getOrThrow();
 
       expect(page.content, hasLength(1));
       expect((page as OffsetPage<Todo>).totalElements, 2);

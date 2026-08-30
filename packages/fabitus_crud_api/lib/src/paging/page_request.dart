@@ -54,24 +54,14 @@ sealed class PageRequest with _$PageRequest {
 
   /// The query parameters representing this request.
   Map<String, dynamic> toQueryParameters() => switch (this) {
-    OffsetPageRequest(:final page, :final size) => {
-      'page': page,
-      'size': size,
-      ..._sortParameter,
-    },
-    CursorPageRequest(:final size, :final cursor) => {
-      'size': size,
-      'cursor': ?cursor,
-      ..._sortParameter,
-    },
+    OffsetPageRequest(:final page, :final size) => {'page': page, 'size': size, ..._sortParameter},
+    CursorPageRequest(:final size, :final cursor) => {'size': size, 'cursor': ?cursor, ..._sortParameter},
   };
 
   /// Alias for [toQueryParameters], so retrofit and `jsonEncode` can use it.
   Map<String, dynamic> toJson() => toQueryParameters();
 
-  Map<String, dynamic> get _sortParameter => {
-    if (sort.isSorted) 'sort': sort.toQueryValue(),
-  };
+  Map<String, dynamic> get _sortParameter => {if (sort.isSorted) 'sort': sort.toQueryValue()};
 }
 
 /// Members that only an offset based request has.

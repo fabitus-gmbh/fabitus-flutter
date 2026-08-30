@@ -14,8 +14,7 @@ enum SortDirection {
   String get wireValue => name.toUpperCase();
 
   /// Parses `asc`/`ASC` and `desc`/`DESC`, defaulting to [SortDirection.asc].
-  static SortDirection fromJson(String json) =>
-      json.toLowerCase() == 'desc' ? SortDirection.desc : SortDirection.asc;
+  static SortDirection fromJson(String json) => json.toLowerCase() == 'desc' ? SortDirection.desc : SortDirection.asc;
 }
 
 /// A single `property, direction` pair.
@@ -36,10 +35,8 @@ abstract class SortOrder with _$SortOrder {
   const SortOrder._();
 
   /// This order with the direction flipped.
-  SortOrder get reversed => SortOrder(
-    property,
-    direction == SortDirection.asc ? SortDirection.desc : SortDirection.asc,
-  );
+  SortOrder get reversed =>
+      SortOrder(property, direction == SortDirection.asc ? SortDirection.desc : SortDirection.asc);
 
   /// The Spring Data query representation, for example `createdAt,DESC`.
   String toQueryValue() => '$property,${direction.wireValue}';
@@ -66,10 +63,8 @@ abstract class Sort with _$Sort {
   const Sort._();
 
   /// Sorts by a single [property].
-  factory Sort.by(
-    String property, [
-    SortDirection direction = SortDirection.asc,
-  ]) => Sort([SortOrder(property, direction)]);
+  factory Sort.by(String property, [SortDirection direction = SortDirection.asc]) =>
+      Sort([SortOrder(property, direction)]);
 
   /// Parses the Spring Data query representation, for example
   /// `['createdAt,DESC', 'title']`.
@@ -78,9 +73,7 @@ abstract class Sort with _$Sort {
       if (value.isNotEmpty)
         SortOrder(
           value.split(',').first,
-          value.contains(',')
-              ? SortDirection.fromJson(value.split(',').last)
-              : SortDirection.asc,
+          value.contains(',') ? SortDirection.fromJson(value.split(',').last) : SortDirection.asc,
         ),
   ]);
 
@@ -97,16 +90,13 @@ abstract class Sort with _$Sort {
   Sort and(Sort other) => Sort([...orders, ...other.orders]);
 
   /// This sort with every order forced to [SortDirection.asc].
-  Sort ascending() =>
-      Sort([for (final o in orders) SortOrder(o.property, SortDirection.asc)]);
+  Sort ascending() => Sort([for (final o in orders) SortOrder(o.property, SortDirection.asc)]);
 
   /// This sort with every order forced to [SortDirection.desc].
-  Sort descending() =>
-      Sort([for (final o in orders) SortOrder(o.property, SortDirection.desc)]);
+  Sort descending() => Sort([for (final o in orders) SortOrder(o.property, SortDirection.desc)]);
 
   /// The Spring Data query representation, one entry per order.
-  List<String> toQueryValue() =>
-      orders.map((order) => order.toQueryValue()).toList(growable: false);
+  List<String> toQueryValue() => orders.map((order) => order.toQueryValue()).toList(growable: false);
 
   @override
   String toString() => isUnsorted ? 'unsorted' : toQueryValue().join('; ');

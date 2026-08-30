@@ -22,10 +22,7 @@ void main() {
     });
 
     test('fold takes the success branch', () {
-      expect(
-        result.fold(onSuccess: (value) => value * 2, onFailure: (_, _) => -1),
-        84,
-      );
+      expect(result.fold(onSuccess: (value) => value * 2, onFailure: (_, _) => -1), 84);
     });
 
     test('equality is by value', () {
@@ -63,10 +60,7 @@ void main() {
     });
 
     test('fold takes the failure branch', () {
-      expect(
-        result.fold(onSuccess: (value) => value, onFailure: (e, _) => -1),
-        -1,
-      );
+      expect(result.fold(onSuccess: (value) => value, onFailure: (e, _) => -1), -1);
     });
   });
 

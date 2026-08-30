@@ -21,8 +21,7 @@ abstract interface class KeyValueStore {
 /// restart.
 class InMemoryKeyValueStore implements KeyValueStore {
   /// Creates a store, optionally pre-filled with [initial].
-  InMemoryKeyValueStore([Map<String, String> initial = const {}])
-    : _values = Map<String, String>.of(initial);
+  InMemoryKeyValueStore([Map<String, String> initial = const {}]) : _values = Map<String, String>.of(initial);
 
   final Map<String, String> _values;
 

@@ -17,20 +17,11 @@ class Todo implements CrudEntity<String> {
   final int? priority;
   final bool done;
 
-  Todo copyWith({String? id, String? title, int? priority, bool? done}) => Todo(
-    id: id ?? this.id,
-    title: title ?? this.title,
-    priority: priority ?? this.priority,
-    done: done ?? this.done,
-  );
+  Todo copyWith({String? id, String? title, int? priority, bool? done}) =>
+      Todo(id: id ?? this.id, title: title ?? this.title, priority: priority ?? this.priority, done: done ?? this.done);
 
   @override
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'title': title,
-    'priority': priority,
-    'done': done,
-  };
+  Map<String, dynamic> toJson() => {'id': id, 'title': title, 'priority': priority, 'done': done};
 
   @override
   String toString() => 'Todo($id, $title)';
@@ -38,11 +29,7 @@ class Todo implements CrudEntity<String> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Todo &&
-          other.id == id &&
-          other.title == title &&
-          other.priority == priority &&
-          other.done == done;
+      other is Todo && other.id == id && other.title == title && other.priority == priority && other.done == done;
 
   @override
   int get hashCode => Object.hash(id, title, priority, done);

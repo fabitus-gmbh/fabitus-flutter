@@ -16,10 +16,7 @@ void main() {
     });
 
     test('and concatenates orders in order', () {
-      final sort = Sort.by(
-        'createdAt',
-        SortDirection.desc,
-      ).and(Sort.by('title'));
+      final sort = Sort.by('createdAt', SortDirection.desc).and(Sort.by('title'));
 
       expect(sort.toQueryValue(), ['createdAt,DESC', 'title,ASC']);
     });
@@ -34,10 +31,7 @@ void main() {
     test('parse reads the query representation, direction optional', () {
       final sort = Sort.parse(['createdAt,DESC', 'title', '']);
 
-      expect(sort.orders, [
-        const SortOrder('createdAt', SortDirection.desc),
-        const SortOrder('title'),
-      ]);
+      expect(sort.orders, [const SortOrder('createdAt', SortDirection.desc), const SortOrder('title')]);
     });
 
     test('equality is by value', () {
@@ -50,10 +44,7 @@ void main() {
   group('SortOrder', () {
     test('reversed flips the direction', () {
       expect(const SortOrder('a').reversed.direction, SortDirection.desc);
-      expect(
-        const SortOrder('a', SortDirection.desc).reversed.direction,
-        SortDirection.asc,
-      );
+      expect(const SortOrder('a', SortDirection.desc).reversed.direction, SortDirection.asc);
     });
   });
 

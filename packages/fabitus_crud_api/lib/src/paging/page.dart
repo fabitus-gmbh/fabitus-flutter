@@ -53,32 +53,20 @@ sealed class Page<T> with _$Page<T> {
   /// `cursor`, `nextCursor` or `nextPageToken` becomes a [CursorPage], anything
   /// else an [OffsetPage]. Both variants accept `content`, `items` or `data`
   /// for the element list, so Spring Data and hand rolled backends both work.
-  factory Page.fromJson(
-    Map<String, dynamic> json,
-    T Function(Object? json) fromJsonT,
-  ) {
+  factory Page.fromJson(Map<String, dynamic> json, T Function(Object? json) fromJsonT) {
     final rawContent = json['content'] ?? json['items'] ?? json['data'];
-    final content = rawContent is List
-        ? rawContent.map(fromJsonT).toList(growable: false)
-        : <T>[];
-    if (json.containsKey('nextCursor') ||
-        json.containsKey('nextPageToken') ||
-        json.containsKey('cursor')) {
+    final content = rawContent is List ? rawContent.map(fromJsonT).toList(growable: false) : <T>[];
+    if (json.containsKey('nextCursor') || json.containsKey('nextPageToken') || json.containsKey('cursor')) {
       return CursorPage<T>(
         content: content,
-        nextCursor:
-            (json['nextCursor'] ?? json['nextPageToken'] ?? json['cursor'])
-                as String?,
+        nextCursor: (json['nextCursor'] ?? json['nextPageToken'] ?? json['cursor']) as String?,
       );
     }
     return OffsetPage<T>(
       content: content,
       page: ((json['page'] ?? json['number'] ?? 0) as num).toInt(),
       size: ((json['size'] ?? json['limit'] ?? content.length) as num).toInt(),
-      totalElements:
-          ((json['totalElements'] ?? json['totalSize'] ?? json['total'])
-                  as num?)
-              ?.toInt(),
+      totalElements: ((json['totalElements'] ?? json['totalSize'] ?? json['total']) as num?)?.toInt(),
     );
   }
 
@@ -89,8 +77,7 @@ sealed class Page<T> with _$Page<T> {
       null => page.size > 0 && page.content.length >= page.size,
       final total => page.offset + page.content.length < total,
     },
-    CursorPage<T>(:final nextCursor) =>
-      nextCursor != null && nextCursor.isNotEmpty,
+    CursorPage<T>(:final nextCursor) => nextCursor != null && nextCursor.isNotEmpty,
   };
 
   /// The request that reads the following page, or `null` when [hasNext] is
@@ -103,19 +90,11 @@ sealed class Page<T> with _$Page<T> {
     return switch (this) {
       OffsetPage<T>(:final page) => switch (current) {
         final OffsetPageRequest request => request.next(),
-        CursorPageRequest(:final size, :final sort) => PageRequest.offset(
-          page: page + 1,
-          size: size,
-          sort: sort,
-        ),
+        CursorPageRequest(:final size, :final sort) => PageRequest.offset(page: page + 1, size: size, sort: sort),
       },
       CursorPage<T>(:final nextCursor) => switch (current) {
         final CursorPageRequest request => request.copyWith(cursor: nextCursor),
-        OffsetPageRequest(:final size, :final sort) => PageRequest.cursor(
-          size: size,
-          cursor: nextCursor,
-          sort: sort,
-        ),
+        OffsetPageRequest(:final size, :final sort) => PageRequest.cursor(size: size, cursor: nextCursor, sort: sort),
       },
     };
   }
@@ -136,17 +115,13 @@ sealed class Page<T> with _$Page<T> {
   Page<R> map<R>(R Function(T element) transform) {
     final converted = content.map(transform).toList(growable: false);
     return switch (this) {
-      OffsetPage<T>(:final page, :final size, :final totalElements) =>
-        OffsetPage<R>(
-          content: converted,
-          page: page,
-          size: size,
-          totalElements: totalElements,
-        ),
-      CursorPage<T>(:final nextCursor) => CursorPage<R>(
+      OffsetPage<T>(:final page, :final size, :final totalElements) => OffsetPage<R>(
         content: converted,
-        nextCursor: nextCursor,
+        page: page,
+        size: size,
+        totalElements: totalElements,
       ),
+      CursorPage<T>(:final nextCursor) => CursorPage<R>(content: converted, nextCursor: nextCursor),
     };
   }
 
@@ -160,10 +135,7 @@ sealed class Page<T> with _$Page<T> {
         'size': size,
         'totalElements': ?totalElements,
       },
-      CursorPage<T>(:final nextCursor) => {
-        'content': converted,
-        'nextCursor': nextCursor,
-      },
+      CursorPage<T>(:final nextCursor) => {'content': converted, 'nextCursor': nextCursor},
     };
   }
 
@@ -172,8 +144,7 @@ sealed class Page<T> with _$Page<T> {
     OffsetPage<T>(:final page, :final size, :final totalElements) =>
       'OffsetPage(page: $page, size: $size, total: $totalElements, '
           'content: ${content.length})',
-    CursorPage<T>(:final nextCursor) =>
-      'CursorPage(nextCursor: $nextCursor, content: ${content.length})',
+    CursorPage<T>(:final nextCursor) => 'CursorPage(nextCursor: $nextCursor, content: ${content.length})',
   };
 }
 

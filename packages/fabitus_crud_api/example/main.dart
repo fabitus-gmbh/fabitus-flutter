@@ -8,9 +8,7 @@ void main() async {
   // 1. A repository. Swap InMemoryCrudRepository for KeyValueCrudRepository or
   //    RemotePagingCrudRepository without touching anything below.
   final service = PagingCrudService<Todo, String>(
-    InMemoryCrudRepository<Todo, String>(
-      withId: (todo, id) => todo.copyWith(id: id),
-    ),
+    InMemoryCrudRepository<Todo, String>(withId: (todo, id) => todo.copyWith(id: id)),
   );
 
   // 2. Other parts of the app can follow every write.
@@ -30,9 +28,7 @@ void main() async {
   }
 
   // 4. Page through the collection, newest title first.
-  final page = await service.findPage(
-    OffsetPageRequest(size: 2, sort: Sort.by('title', SortDirection.desc)),
-  );
+  final page = await service.findPage(OffsetPageRequest(size: 2, sort: Sort.by('title', SortDirection.desc)));
   final todos = page.getOrThrow();
   print('page 0: ${todos.content.map((todo) => todo.title).join(', ')}');
   print('has next: ${todos.hasNext}');
@@ -47,22 +43,16 @@ void main() async {
 class Todo implements CrudEntity<String> {
   const Todo({this.id, required this.title, this.done = false});
 
-  factory Todo.fromJson(Map<String, dynamic> json) => Todo(
-    id: json['id'] as String?,
-    title: json['title'] as String,
-    done: json['done'] as bool? ?? false,
-  );
+  factory Todo.fromJson(Map<String, dynamic> json) =>
+      Todo(id: json['id'] as String?, title: json['title'] as String, done: json['done'] as bool? ?? false);
 
   @override
   final String? id;
   final String title;
   final bool done;
 
-  Todo copyWith({String? id, String? title, bool? done}) => Todo(
-    id: id ?? this.id,
-    title: title ?? this.title,
-    done: done ?? this.done,
-  );
+  Todo copyWith({String? id, String? title, bool? done}) =>
+      Todo(id: id ?? this.id, title: title ?? this.title, done: done ?? this.done);
 
   @override
   Map<String, dynamic> toJson() => {'id': id, 'title': title, 'done': done};

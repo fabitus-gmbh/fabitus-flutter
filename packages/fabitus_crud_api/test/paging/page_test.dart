@@ -4,12 +4,7 @@ import 'package:test/test.dart';
 void main() {
   group('OffsetPage', () {
     test('derives totalPages and offset', () {
-      const page = OffsetPage<int>(
-        content: [1, 2],
-        page: 1,
-        size: 2,
-        totalElements: 5,
-      );
+      const page = OffsetPage<int>(content: [1, 2], page: 1, size: 2, totalElements: 5);
 
       expect(page.offset, 2);
       expect(page.totalPages, 3);
@@ -18,17 +13,8 @@ void main() {
     });
 
     test('hasNext uses the total when it is known', () {
-      const middle = OffsetPage<int>(
-        content: [1, 2],
-        size: 2,
-        totalElements: 5,
-      );
-      const last = OffsetPage<int>(
-        content: [5],
-        page: 2,
-        size: 2,
-        totalElements: 5,
-      );
+      const middle = OffsetPage<int>(content: [1, 2], size: 2, totalElements: 5);
+      const last = OffsetPage<int>(content: [5], page: 2, size: 2, totalElements: 5);
 
       expect(middle.hasNext, isTrue);
       expect(last.hasNext, isFalse);
@@ -66,10 +52,7 @@ void main() {
       const request = OffsetPageRequest(size: 2);
 
       expect((page.nextPageRequest(request)! as OffsetPageRequest).page, 1);
-      expect(
-        const OffsetPage<int>(content: [1], size: 2).nextPageRequest(request),
-        isNull,
-      );
+      expect(const OffsetPage<int>(content: [1], size: 2).nextPageRequest(request), isNull);
     });
 
     test('nextPageRequest converts a cursor request to an offset one', () {
@@ -82,12 +65,7 @@ void main() {
     });
 
     test('map converts the content and keeps the metadata', () {
-      const page = OffsetPage<int>(
-        content: [1, 2],
-        page: 1,
-        size: 2,
-        totalElements: 5,
-      );
+      const page = OffsetPage<int>(content: [1, 2], page: 1, size: 2, totalElements: 5);
 
       final mapped = page.map((value) => '$value') as OffsetPage<String>;
 
@@ -97,28 +75,16 @@ void main() {
     });
 
     test('equality is by value', () {
-      expect(
-        const OffsetPage<int>(content: [1], size: 1),
-        const OffsetPage<int>(content: [1], size: 1),
-      );
-      expect(
-        const OffsetPage<int>(content: [1], size: 1),
-        isNot(const OffsetPage<int>(content: [2], size: 1)),
-      );
+      expect(const OffsetPage<int>(content: [1], size: 1), const OffsetPage<int>(content: [1], size: 1));
+      expect(const OffsetPage<int>(content: [1], size: 1), isNot(const OffsetPage<int>(content: [2], size: 1)));
     });
   });
 
   group('CursorPage', () {
     test('hasNext requires a non empty cursor', () {
-      expect(
-        const CursorPage<int>(content: [1], nextCursor: 'abc').hasNext,
-        isTrue,
-      );
+      expect(const CursorPage<int>(content: [1], nextCursor: 'abc').hasNext, isTrue);
       expect(const CursorPage<int>(content: [1]).hasNext, isFalse);
-      expect(
-        const CursorPage<int>(content: [1], nextCursor: '').hasNext,
-        isFalse,
-      );
+      expect(const CursorPage<int>(content: [1], nextCursor: '').hasNext, isFalse);
     });
 
     test('nextPageRequest carries the cursor over', () {
@@ -195,12 +161,7 @@ void main() {
     });
 
     test('round trips through toJson', () {
-      const page = OffsetPage<int>(
-        content: [1, 2],
-        page: 1,
-        size: 2,
-        totalElements: 5,
-      );
+      const page = OffsetPage<int>(content: [1, 2], page: 1, size: 2, totalElements: 5);
 
       final json = page.toJson((value) => value);
 

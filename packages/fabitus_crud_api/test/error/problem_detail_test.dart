@@ -42,20 +42,14 @@ void main() {
     });
 
     test('keeps unknown members in extensions', () {
-      final problem = ProblemDetail.fromJson(const {
-        'title': 'Bad Request',
-        'traceId': 'abc-123',
-      });
+      final problem = ProblemDetail.fromJson(const {'title': 'Bad Request', 'traceId': 'abc-123'});
 
       expect(problem.extensions, {'traceId': 'abc-123'});
       expect(problem.toJson()['traceId'], 'abc-123');
     });
 
     test('tolerates a missing violations list', () {
-      expect(
-        ProblemDetail.fromJson(const {'violations': 'nope'}).violations,
-        isEmpty,
-      );
+      expect(ProblemDetail.fromJson(const {'violations': 'nope'}).violations, isEmpty);
     });
   });
 
@@ -122,10 +116,7 @@ void main() {
       ConstraintViolation(field: 'due', message: 'must be in the future'),
     ];
 
-    expect(
-      violations.join('\n'),
-      'title: must not be blank\ndue: must be in the future',
-    );
+    expect(violations.join('\n'), 'title: must not be blank\ndue: must be in the future');
   });
 
   test('toJson omits absent members', () {

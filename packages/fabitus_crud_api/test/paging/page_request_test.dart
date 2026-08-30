@@ -27,21 +27,15 @@ void main() {
     });
 
     test('toQueryParameters omits an unsorted sort', () {
-      expect(const OffsetPageRequest(page: 2, size: 10).toQueryParameters(), {
-        'page': 2,
-        'size': 10,
-      });
+      expect(const OffsetPageRequest(page: 2, size: 10).toQueryParameters(), {'page': 2, 'size': 10});
     });
 
     test('toQueryParameters includes the sort when present', () {
-      expect(
-        OffsetPageRequest(size: 10, sort: Sort.by('title')).toQueryParameters(),
-        {
-          'page': 0,
-          'size': 10,
-          'sort': ['title,ASC'],
-        },
-      );
+      expect(OffsetPageRequest(size: 10, sort: Sort.by('title')).toQueryParameters(), {
+        'page': 0,
+        'size': 10,
+        'sort': ['title,ASC'],
+      });
     });
 
     test('toJson matches toQueryParameters', () {
@@ -52,21 +46,12 @@ void main() {
 
     test('rejects a non positive size and a negative page', () {
       expect(() => OffsetPageRequest(size: 0), throwsA(isA<AssertionError>()));
-      expect(
-        () => OffsetPageRequest(page: -1, size: 5),
-        throwsA(isA<AssertionError>()),
-      );
+      expect(() => OffsetPageRequest(page: -1, size: 5), throwsA(isA<AssertionError>()));
     });
 
     test('equality is by value', () {
-      expect(
-        const OffsetPageRequest(page: 1, size: 10),
-        const OffsetPageRequest(page: 1, size: 10),
-      );
-      expect(
-        const OffsetPageRequest(page: 1, size: 10),
-        isNot(const OffsetPageRequest(page: 2, size: 10)),
-      );
+      expect(const OffsetPageRequest(page: 1, size: 10), const OffsetPageRequest(page: 1, size: 10));
+      expect(const OffsetPageRequest(page: 1, size: 10), isNot(const OffsetPageRequest(page: 2, size: 10)));
     });
   });
 

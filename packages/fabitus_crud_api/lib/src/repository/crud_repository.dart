@@ -11,10 +11,7 @@ import '../paging/page_request.dart';
 ///
 /// The method names follow Spring Data's `CrudRepository`, so the contract is
 /// familiar on both ends of a project.
-abstract interface class ReadCrudRepository<
-  T extends CrudEntity<ID>,
-  ID extends Object
-> {
+abstract interface class ReadCrudRepository<T extends CrudEntity<ID>, ID extends Object> {
   /// Reads the entity with [id].
   ///
   /// Fails with [CrudNotFoundException] when no such entity exists.
@@ -34,10 +31,7 @@ abstract interface class ReadCrudRepository<
 }
 
 /// Read and write access to entities of type [T] identified by [ID].
-abstract interface class CrudRepository<
-  T extends CrudEntity<ID>,
-  ID extends Object
->
+abstract interface class CrudRepository<T extends CrudEntity<ID>, ID extends Object>
     implements ReadCrudRepository<T, ID> {
   /// Persists a new entity and returns it with the id assigned by the store.
   Future<CrudResult<T>> create(T entity);
@@ -62,10 +56,7 @@ abstract interface class CrudRepository<
 /// A [CrudRepository] that can also read a single [Page] of entities.
 ///
 /// The equivalent of Spring Data's `PagingAndSortingRepository`.
-abstract interface class PagingCrudRepository<
-  T extends CrudEntity<ID>,
-  ID extends Object
->
+abstract interface class PagingCrudRepository<T extends CrudEntity<ID>, ID extends Object>
     implements CrudRepository<T, ID> {
   /// Reads the page described by [pageRequest].
   Future<CrudResult<Page<T>>> findPage(PageRequest pageRequest);
@@ -76,8 +67,7 @@ abstract interface class PagingCrudRepository<
 /// Provides the derived operations - [save] and [delete] - and the [guard]
 /// helper that funnels every thrown object through [errorMapper]. Extend this
 /// instead of implementing [CrudRepository] from scratch.
-abstract class BaseCrudRepository<T extends CrudEntity<ID>, ID extends Object>
-    implements CrudRepository<T, ID> {
+abstract class BaseCrudRepository<T extends CrudEntity<ID>, ID extends Object> implements CrudRepository<T, ID> {
   /// Creates a repository that maps failures with [errorMapper].
   const BaseCrudRepository({this.errorMapper = const DefaultCrudErrorMapper()});
 
@@ -86,8 +76,7 @@ abstract class BaseCrudRepository<T extends CrudEntity<ID>, ID extends Object>
 
   /// Runs [action] and converts anything it throws into a [CrudFailure].
   @protected
-  Future<CrudResult<R>> guard<R>(Future<R> Function() action) =>
-      guardCrud<R>(action, errorMapper: errorMapper);
+  Future<CrudResult<R>> guard<R>(Future<R> Function() action) => guardCrud<R>(action, errorMapper: errorMapper);
 
   /// Returns the id of [entity], or a failure when it has none.
   ///
@@ -97,30 +86,22 @@ abstract class BaseCrudRepository<T extends CrudEntity<ID>, ID extends Object>
   CrudResult<ID> requireId(T entity) {
     final id = entity.id;
     if (id == null) {
-      return CrudFailure<ID>(
-        CrudValidationException('Cannot operate on a $T without an id'),
-        StackTrace.current,
-      );
+      return CrudFailure<ID>(CrudValidationException('Cannot operate on a $T without an id'), StackTrace.current);
     }
     return CrudSuccess<ID>(id);
   }
 
   @override
-  Future<CrudResult<T>> save(T entity) =>
-      entity.id == null ? create(entity) : update(entity);
+  Future<CrudResult<T>> save(T entity) => entity.id == null ? create(entity) : update(entity);
 
   @override
   Future<CrudResult<void>> delete(T entity) => switch (requireId(entity)) {
     CrudSuccess<ID>(:final data) => deleteById(data),
-    final CrudFailure<ID> failure => Future<CrudResult<void>>.value(
-      failure.cast<void>(),
-    ),
+    final CrudFailure<ID> failure => Future<CrudResult<void>>.value(failure.cast<void>()),
   };
 
   @override
-  Future<CrudResult<bool>> existsById(ID id) async => switch (await findById(
-    id,
-  )) {
+  Future<CrudResult<bool>> existsById(ID id) async => switch (await findById(id)) {
     CrudSuccess<T>() => const CrudSuccess<bool>(true),
     CrudFailure<T>(error: CrudNotFoundException()) => const CrudSuccess(false),
     final CrudFailure<T> failure => failure.cast<bool>(),

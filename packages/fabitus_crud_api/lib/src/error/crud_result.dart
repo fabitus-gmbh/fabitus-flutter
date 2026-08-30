@@ -40,8 +40,7 @@ sealed class CrudResult<T> {
   /// Use this at the edge of code that already runs inside a `try`/`catch`.
   T getOrThrow() => switch (this) {
     CrudSuccess<T>(:final data) => data,
-    CrudFailure<T>(:final error, :final stackTrace) =>
-      Error.throwWithStackTrace(error, stackTrace),
+    CrudFailure<T>(:final error, :final stackTrace) => Error.throwWithStackTrace(error, stackTrace),
   };
 
   /// The value on success, or the result of [orElse] on failure.
@@ -56,19 +55,13 @@ sealed class CrudResult<T> {
     required R Function(CrudException error, StackTrace stackTrace) onFailure,
   }) => switch (this) {
     CrudSuccess<T>(:final data) => onSuccess(data),
-    CrudFailure<T>(:final error, :final stackTrace) => onFailure(
-      error,
-      stackTrace,
-    ),
+    CrudFailure<T>(:final error, :final stackTrace) => onFailure(error, stackTrace),
   };
 
   /// Transforms the value of a successful result, passing failures through.
   CrudResult<R> map<R>(R Function(T data) transform) => switch (this) {
     CrudSuccess<T>(:final data) => CrudSuccess<R>(transform(data)),
-    CrudFailure<T>(:final error, :final stackTrace) => CrudFailure<R>(
-      error,
-      stackTrace,
-    ),
+    CrudFailure<T>(:final error, :final stackTrace) => CrudFailure<R>(error, stackTrace),
   };
 }
 
@@ -84,8 +77,7 @@ final class CrudSuccess<T> extends CrudResult<T> {
   String toString() => 'CrudSuccess<$T>($data)';
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) || other is CrudSuccess<T> && other.data == data;
+  bool operator ==(Object other) => identical(this, other) || other is CrudSuccess<T> && other.data == data;
 
   @override
   int get hashCode => Object.hash(CrudSuccess<T>, data);
@@ -112,8 +104,7 @@ final class CrudFailure<T> extends CrudResult<T> {
   String toString() => 'CrudFailure<$T>($error)';
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) || other is CrudFailure<T> && other.error == error;
+  bool operator ==(Object other) => identical(this, other) || other is CrudFailure<T> && other.error == error;
 
   @override
   int get hashCode => Object.hash(CrudFailure<T>, error);

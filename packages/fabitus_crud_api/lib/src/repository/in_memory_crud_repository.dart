@@ -19,8 +19,7 @@ import 'crud_repository.dart';
 ///   initial: [const Todo(id: '1', title: 'Write docs')],
 /// );
 /// ```
-class InMemoryCrudRepository<T extends CrudEntity<ID>, ID extends Object>
-    extends BaseCrudRepository<T, ID>
+class InMemoryCrudRepository<T extends CrudEntity<ID>, ID extends Object> extends BaseCrudRepository<T, ID>
     implements PagingCrudRepository<T, ID> {
   /// Creates a repository seeded with [initial].
   ///
@@ -38,11 +37,7 @@ class InMemoryCrudRepository<T extends CrudEntity<ID>, ID extends Object>
     for (final entity in initial) {
       final id = entity.id;
       if (id == null) {
-        throw ArgumentError.value(
-          entity,
-          'initial',
-          'Seeded entities must already have an id',
-        );
+        throw ArgumentError.value(entity, 'initial', 'Seeded entities must already have an id');
       }
       _entities[id] = entity;
     }
@@ -69,10 +64,7 @@ class InMemoryCrudRepository<T extends CrudEntity<ID>, ID extends Object>
   Future<CrudResult<T>> findById(ID id) async {
     final entity = _entities[id];
     if (entity == null) {
-      return CrudFailure<T>(
-        CrudNotFoundException('No $T with id $id'),
-        StackTrace.current,
-      );
+      return CrudFailure<T>(CrudNotFoundException('No $T with id $id'), StackTrace.current);
     }
     return CrudSuccess<T>(entity);
   }
@@ -115,13 +107,8 @@ class InMemoryCrudRepository<T extends CrudEntity<ID>, ID extends Object>
   });
 
   @override
-  Future<CrudResult<Page<T>>> findPage(PageRequest pageRequest) =>
-      guard(() async {
-        final sorted = sortEntities(
-          _entities.values.toList(growable: false),
-          pageRequest.sort,
-          propertyAccessor,
-        );
-        return pageOf(sorted, pageRequest);
-      });
+  Future<CrudResult<Page<T>>> findPage(PageRequest pageRequest) => guard(() async {
+    final sorted = sortEntities(_entities.values.toList(growable: false), pageRequest.sort, propertyAccessor);
+    return pageOf(sorted, pageRequest);
+  });
 }

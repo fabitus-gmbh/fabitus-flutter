@@ -60,18 +60,9 @@ class DefaultCrudErrorMapper implements CrudErrorMapper {
   @override
   CrudException map(Object error, StackTrace stackTrace) => switch (error) {
     final CrudException exception => exception,
-    TimeoutException(:final message) => CrudTimeoutException(
-      message ?? 'The operation timed out',
-      cause: error,
-    ),
-    FormatException(:final message) => CrudSerializationException(
-      message,
-      cause: error,
-    ),
-    JsonUnsupportedObjectError() => CrudSerializationException(
-      'Value cannot be encoded as JSON',
-      cause: error,
-    ),
+    TimeoutException(:final message) => CrudTimeoutException(message ?? 'The operation timed out', cause: error),
+    FormatException(:final message) => CrudSerializationException(message, cause: error),
+    JsonUnsupportedObjectError() => CrudSerializationException('Value cannot be encoded as JSON', cause: error),
     _ => CrudUnknownException('$error', cause: error),
   };
 }

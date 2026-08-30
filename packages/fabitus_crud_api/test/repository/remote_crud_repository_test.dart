@@ -17,9 +17,7 @@ void main() {
     });
 
     test('delegates create to the api', () async {
-      final created = (await repository.create(
-        const Todo(title: 'Remote'),
-      )).getOrThrow();
+      final created = (await repository.create(const Todo(title: 'Remote'))).getOrThrow();
 
       expect(created.id, '1');
       expect(api.calls, ['create']);
@@ -58,10 +56,7 @@ void main() {
     });
 
     test('uses a custom error mapper', () async {
-      final repository = RemoteCrudRepository<Todo, String>(
-        api,
-        errorMapper: const _StatusCodeMapper(),
-      );
+      final repository = RemoteCrudRepository<Todo, String>(api, errorMapper: const _StatusCodeMapper());
       api.nextError = const _HttpError(403);
 
       final result = await repository.findById('1');
@@ -82,14 +77,8 @@ void main() {
     });
 
     test('findAll and count are unsupported without paging', () async {
-      expect(
-        (await repository.findAll()).errorOrNull,
-        isA<CrudUnsupportedException>(),
-      );
-      expect(
-        (await repository.count()).errorOrNull,
-        isA<CrudUnsupportedException>(),
-      );
+      expect((await repository.findAll()).errorOrNull, isA<CrudUnsupportedException>());
+      expect((await repository.count()).errorOrNull, isA<CrudUnsupportedException>());
     });
   });
 
@@ -101,16 +90,11 @@ void main() {
         reportTotal: reportTotal,
         initial: [for (var i = 0; i < 5; i++) Todo(id: '$i', title: 'Todo $i')],
       );
-      return RemotePagingCrudRepository<Todo, String>(
-        api,
-        pageSizeForFindAll: 2,
-      );
+      return RemotePagingCrudRepository<Todo, String>(api, pageSizeForFindAll: 2);
     }
 
     test('findPage delegates to the api', () async {
-      final page = (await build().findPage(
-        const OffsetPageRequest(page: 1, size: 2),
-      )).getOrThrow();
+      final page = (await build().findPage(const OffsetPageRequest(page: 1, size: 2))).getOrThrow();
 
       expect(page.content.map((todo) => todo.id), ['2', '3']);
       expect(api.calls.single, contains('page: 1'));
@@ -139,9 +123,7 @@ void main() {
     });
 
     test('findAll stops on an empty page', () async {
-      final repository = RemotePagingCrudRepository<Todo, String>(
-        FakeTodoApi(reportTotal: false),
-      );
+      final repository = RemotePagingCrudRepository<Todo, String>(FakeTodoApi(reportTotal: false));
 
       expect((await repository.findAll()).getOrThrow(), isEmpty);
     });
@@ -163,10 +145,7 @@ void main() {
       final repository = build();
       api.nextError = const CrudServerException('down', statusCode: 503);
 
-      expect(
-        (await repository.findAll()).errorOrNull,
-        isA<CrudServerException>(),
-      );
+      expect((await repository.findAll()).errorOrNull, isA<CrudServerException>());
     });
   });
 }
@@ -174,22 +153,17 @@ void main() {
 /// An api that always claims another page, as a broken backend would.
 class _EndlessTodoApi extends PagingCrudApi<Todo, String> {
   @override
-  Future<Page<Todo>> findPage(PageRequest pageRequest) async =>
-      OffsetPage<Todo>(
-        content: [
-          for (var i = 0; i < pageRequest.size; i++)
-            Todo(id: '$i', title: 'Todo'),
-        ],
-        size: pageRequest.size,
-      );
+  Future<Page<Todo>> findPage(PageRequest pageRequest) async => OffsetPage<Todo>(
+    content: [for (var i = 0; i < pageRequest.size; i++) Todo(id: '$i', title: 'Todo')],
+    size: pageRequest.size,
+  );
 
   @override
   Future<Todo> findById(String id) async => throw UnimplementedError();
   @override
   Future<Todo> create(Todo entity) async => throw UnimplementedError();
   @override
-  Future<Todo> update(String id, Todo entity) async =>
-      throw UnimplementedError();
+  Future<Todo> update(String id, Todo entity) async => throw UnimplementedError();
   @override
   Future<void> deleteById(String id) async => throw UnimplementedError();
 }

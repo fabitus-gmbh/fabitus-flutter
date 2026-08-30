@@ -24,7 +24,5 @@ IdGenerator<ID> defaultIdGenerator<ID extends Object>() {
   if (ID == String) {
     return () => newUuid() as ID;
   }
-  throw ArgumentError(
-    'No default id generator for $ID. Pass generateId explicitly.',
-  );
+  throw ArgumentError('No default id generator for $ID. Pass generateId explicitly.');
 }

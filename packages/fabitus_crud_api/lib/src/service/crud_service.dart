@@ -21,16 +21,14 @@ import 'crud_event.dart';
 /// ```
 ///
 /// Failed operations emit nothing - the caller still gets the [CrudFailure].
-class CrudService<T extends CrudEntity<ID>, ID extends Object>
-    implements CrudRepository<T, ID> {
+class CrudService<T extends CrudEntity<ID>, ID extends Object> implements CrudRepository<T, ID> {
   /// Wraps [delegate] and publishes its writes.
   CrudService(this.delegate);
 
   /// The repository that does the actual work.
   final CrudRepository<T, ID> delegate;
 
-  final StreamController<CrudEvent<T>> _events =
-      StreamController<CrudEvent<T>>.broadcast();
+  final StreamController<CrudEvent<T>> _events = StreamController<CrudEvent<T>>.broadcast();
 
   /// Writes performed through this service, in the order they succeeded.
   ///
@@ -79,8 +77,7 @@ class CrudService<T extends CrudEntity<ID>, ID extends Object>
   }
 
   @override
-  Future<CrudResult<T>> save(T entity) =>
-      entity.id == null ? create(entity) : update(entity);
+  Future<CrudResult<T>> save(T entity) => entity.id == null ? create(entity) : update(entity);
 
   @override
   Future<CrudResult<void>> deleteById(ID id) async {
@@ -98,8 +95,7 @@ class CrudService<T extends CrudEntity<ID>, ID extends Object>
 }
 
 /// A [CrudService] for a [PagingCrudRepository].
-class PagingCrudService<T extends CrudEntity<ID>, ID extends Object>
-    extends CrudService<T, ID>
+class PagingCrudService<T extends CrudEntity<ID>, ID extends Object> extends CrudService<T, ID>
     implements PagingCrudRepository<T, ID> {
   /// Wraps [delegate] and publishes its writes.
   PagingCrudService(PagingCrudRepository<T, ID> super.delegate);

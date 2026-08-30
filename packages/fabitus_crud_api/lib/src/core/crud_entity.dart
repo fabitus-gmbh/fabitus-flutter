@@ -41,9 +41,8 @@ class EntityCodec<T> {
   const EntityCodec({required this.fromJson, required this.toJson});
 
   /// Creates a codec for a [CrudEntity], reusing its `toJson` implementation.
-  static EntityCodec<E> forEntity<E extends CrudEntity<Object>>(
-    E Function(Map<String, dynamic> json) fromJson,
-  ) => EntityCodec<E>(fromJson: fromJson, toJson: (entity) => entity.toJson());
+  static EntityCodec<E> forEntity<E extends CrudEntity<Object>>(E Function(Map<String, dynamic> json) fromJson) =>
+      EntityCodec<E>(fromJson: fromJson, toJson: (entity) => entity.toJson());
 
   /// Reconstructs an entity from its JSON representation.
   final T Function(Map<String, dynamic> json) fromJson;

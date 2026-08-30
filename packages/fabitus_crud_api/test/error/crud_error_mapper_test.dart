@@ -29,10 +29,7 @@ void main() {
     });
 
     test('maps a JsonUnsupportedObjectError', () {
-      final mapped = mapper.map(
-        JsonUnsupportedObjectError(Object()),
-        stackTrace,
-      );
+      final mapped = mapper.map(JsonUnsupportedObjectError(Object()), stackTrace);
 
       expect(mapped, isA<CrudSerializationException>());
     });
@@ -59,10 +56,7 @@ void main() {
     });
 
     test('uses the supplied mapper', () async {
-      final result = await guardCrud<int>(
-        () async => throw StateError('boom'),
-        errorMapper: const _AlwaysConflict(),
-      );
+      final result = await guardCrud<int>(() async => throw StateError('boom'), errorMapper: const _AlwaysConflict());
 
       expect(result.errorOrNull, isA<CrudConflictException>());
     });
@@ -70,10 +64,7 @@ void main() {
     test('keeps the stack trace of the origin', () async {
       final result = await guardCrud<int>(() async => throw StateError('boom'));
 
-      expect(
-        (result as CrudFailure<int>).stackTrace.toString(),
-        contains('crud_error_mapper_test.dart'),
-      );
+      expect((result as CrudFailure<int>).stackTrace.toString(), contains('crud_error_mapper_test.dart'));
     });
   });
 }
@@ -82,6 +73,5 @@ class _AlwaysConflict implements CrudErrorMapper {
   const _AlwaysConflict();
 
   @override
-  CrudException map(Object error, StackTrace stackTrace) =>
-      CrudConflictException('$error', cause: error);
+  CrudException map(Object error, StackTrace stackTrace) => CrudConflictException('$error', cause: error);
 }

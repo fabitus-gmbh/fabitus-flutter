@@ -30,8 +30,7 @@ import 'key_value_store.dart';
 /// Every operation rewrites the full document, which keeps writes atomic and
 /// the implementation simple. That is the right trade for the hundreds of
 /// entities a device holds; for larger sets use a database instead.
-class KeyValueCrudRepository<T extends CrudEntity<ID>, ID extends Object>
-    extends BaseCrudRepository<T, ID>
+class KeyValueCrudRepository<T extends CrudEntity<ID>, ID extends Object> extends BaseCrudRepository<T, ID>
     implements PagingCrudRepository<T, ID> {
   /// Creates a repository storing its collection under [storageKey].
   ///
@@ -80,8 +79,7 @@ class KeyValueCrudRepository<T extends CrudEntity<ID>, ID extends Object>
   Future<CrudResult<List<T>>> findAll() => guard(_readAll);
 
   @override
-  Future<CrudResult<int>> count() =>
-      guard(() async => (await _readAll()).length);
+  Future<CrudResult<int>> count() => guard(() async => (await _readAll()).length);
 
   @override
   Future<CrudResult<T>> create(T entity) => guard(() async {
@@ -113,9 +111,7 @@ class KeyValueCrudRepository<T extends CrudEntity<ID>, ID extends Object>
   @override
   Future<CrudResult<void>> deleteById(ID id) => guard(() async {
     final entities = await _readAll();
-    final remaining = entities
-        .where((entity) => entity.id != id)
-        .toList(growable: false);
+    final remaining = entities.where((entity) => entity.id != id).toList(growable: false);
     if (remaining.length == entities.length) {
       throw CrudNotFoundException('No $T with id $id');
     }
@@ -123,15 +119,10 @@ class KeyValueCrudRepository<T extends CrudEntity<ID>, ID extends Object>
   });
 
   @override
-  Future<CrudResult<Page<T>>> findPage(PageRequest pageRequest) =>
-      guard(() async {
-        final sorted = sortEntities(
-          await _readAll(),
-          pageRequest.sort,
-          propertyAccessor,
-        );
-        return pageOf(sorted, pageRequest);
-      });
+  Future<CrudResult<Page<T>>> findPage(PageRequest pageRequest) => guard(() async {
+    final sorted = sortEntities(await _readAll(), pageRequest.sort, propertyAccessor);
+    return pageOf(sorted, pageRequest);
+  });
 
   /// Removes the whole collection from the store.
   Future<CrudResult<void>> clear() => guard(() => store.remove(storageKey));
@@ -143,24 +134,14 @@ class KeyValueCrudRepository<T extends CrudEntity<ID>, ID extends Object>
     try {
       decoded = jsonDecode(raw);
     } on FormatException catch (error) {
-      throw CrudSerializationException(
-        'Stored value under "$storageKey" is not valid JSON',
-        cause: error,
-      );
+      throw CrudSerializationException('Stored value under "$storageKey" is not valid JSON', cause: error);
     }
     if (decoded is! List) {
-      throw CrudSerializationException(
-        'Stored value under "$storageKey" is not a JSON array',
-      );
+      throw CrudSerializationException('Stored value under "$storageKey" is not a JSON array');
     }
-    return decoded
-        .whereType<Map<String, dynamic>>()
-        .map(codec.fromJson)
-        .toList(growable: false);
+    return decoded.whereType<Map<String, dynamic>>().map(codec.fromJson).toList(growable: false);
   }
 
-  Future<void> _writeAll(List<T> entities) => store.write(
-    storageKey,
-    jsonEncode(entities.map(codec.toJson).toList(growable: false)),
-  );
+  Future<void> _writeAll(List<T> entities) =>
+      store.write(storageKey, jsonEncode(entities.map(codec.toJson).toList(growable: false)));
 }

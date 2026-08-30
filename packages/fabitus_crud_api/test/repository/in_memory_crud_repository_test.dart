@@ -5,10 +5,7 @@ import '../support/todo.dart';
 import 'crud_repository_contract.dart';
 
 void main() {
-  runCrudRepositoryContract(
-    'InMemoryCrudRepository',
-    () => InMemoryCrudRepository<Todo, String>(withId: assignTodoId),
-  );
+  runCrudRepositoryContract('InMemoryCrudRepository', () => InMemoryCrudRepository<Todo, String>(withId: assignTodoId));
 
   group('InMemoryCrudRepository', () {
     test('is seeded from initial', () async {
@@ -47,50 +44,34 @@ void main() {
         initial: const [Todo(id: '1', title: 'Seeded')],
       );
 
-      expect(
-        () => repository.entities.add(const Todo(id: '2', title: 'Nope')),
-        throwsUnsupportedError,
-      );
+      expect(() => repository.entities.add(const Todo(id: '2', title: 'Nope')), throwsUnsupportedError);
     });
 
     test('uses a custom id generator', () async {
       var next = 0;
-      final repository = InMemoryCrudRepository<Todo, String>(
-        withId: assignTodoId,
-        generateId: () => 'id-${next++}',
-      );
+      final repository = InMemoryCrudRepository<Todo, String>(withId: assignTodoId, generateId: () => 'id-${next++}');
 
-      final created = (await repository.create(
-        const Todo(title: 'One'),
-      )).getOrThrow();
+      final created = (await repository.create(const Todo(title: 'One'))).getOrThrow();
 
       expect(created.id, 'id-0');
     });
 
     test('requires an explicit generator for non String ids', () {
-      expect(
-        () => InMemoryCrudRepository<IntKeyed, int>(
-          withId: (entity, id) => IntKeyed(id),
-        ),
-        throwsArgumentError,
-      );
+      expect(() => InMemoryCrudRepository<IntKeyed, int>(withId: (entity, id) => IntKeyed(id)), throwsArgumentError);
     });
 
     test('uses a custom property accessor for sorting', () async {
       final repository = InMemoryCrudRepository<Todo, String>(
         withId: assignTodoId,
         // Sort by title length instead of by the JSON value.
-        propertyAccessor: (todo, property) =>
-            property == 'length' ? todo.title.length : todo.toJson()[property],
+        propertyAccessor: (todo, property) => property == 'length' ? todo.title.length : todo.toJson()[property],
         initial: const [
           Todo(id: '1', title: 'looooong'),
           Todo(id: '2', title: 'ab'),
         ],
       );
 
-      final page = (await repository.findPage(
-        OffsetPageRequest(size: 10, sort: Sort.by('length')),
-      )).getOrThrow();
+      final page = (await repository.findPage(OffsetPageRequest(size: 10, sort: Sort.by('length')))).getOrThrow();
 
       expect(page.content.first.title, 'ab');
     });
@@ -105,9 +86,7 @@ void main() {
         ],
       );
 
-      final result = await repository.findPage(
-        OffsetPageRequest(size: 10, sort: Sort.by('anything')),
-      );
+      final result = await repository.findPage(OffsetPageRequest(size: 10, sort: Sort.by('anything')));
 
       expect(result.errorOrNull, isA<CrudUnsupportedException>());
     });

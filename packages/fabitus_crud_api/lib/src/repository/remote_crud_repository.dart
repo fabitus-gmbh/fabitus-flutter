@@ -22,8 +22,7 @@ import 'crud_repository.dart';
 /// [findAll] and [count] fail with [CrudUnsupportedException], because a plain
 /// [CrudApi] exposes no collection endpoint. Use [RemotePagingCrudRepository]
 /// when the backend supports paging.
-class RemoteCrudRepository<T extends CrudEntity<ID>, ID extends Object>
-    extends BaseCrudRepository<T, ID> {
+class RemoteCrudRepository<T extends CrudEntity<ID>, ID extends Object> extends BaseCrudRepository<T, ID> {
   /// Creates a repository delegating to [api].
   const RemoteCrudRepository(this.api, {super.errorMapper});
 
@@ -72,8 +71,7 @@ class RemoteCrudRepository<T extends CrudEntity<ID>, ID extends Object>
 /// On top of [findPage] it can implement [findAll] and [count], by walking the
 /// pages until the backend reports no further one. Both are convenience for
 /// small collections - prefer [findPage] for anything a user scrolls through.
-class RemotePagingCrudRepository<T extends CrudEntity<ID>, ID extends Object>
-    extends RemoteCrudRepository<T, ID>
+class RemotePagingCrudRepository<T extends CrudEntity<ID>, ID extends Object> extends RemoteCrudRepository<T, ID>
     implements PagingCrudRepository<T, ID> {
   /// Creates a repository delegating to [api].
   ///
@@ -100,17 +98,14 @@ class RemotePagingCrudRepository<T extends CrudEntity<ID>, ID extends Object>
   PagingCrudApi<T, ID> get _pagingApi => api as PagingCrudApi<T, ID>;
 
   @override
-  Future<CrudResult<Page<T>>> findPage(PageRequest pageRequest) =>
-      guard(() => _pagingApi.findPage(pageRequest));
+  Future<CrudResult<Page<T>>> findPage(PageRequest pageRequest) => guard(() => _pagingApi.findPage(pageRequest));
 
   @override
   Future<CrudResult<List<T>>> findAll() => guard(_readEveryPage);
 
   @override
   Future<CrudResult<int>> count() => guard(() async {
-    final first = await _pagingApi.findPage(
-      OffsetPageRequest(size: pageSizeForFindAll),
-    );
+    final first = await _pagingApi.findPage(OffsetPageRequest(size: pageSizeForFindAll));
     // A backend that reports the total saves us from walking the collection.
     if (first is OffsetPage<T> && first.totalElements != null) {
       return first.totalElements!;
