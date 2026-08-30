@@ -8,6 +8,11 @@ doc/api/
 # Only the workspace root lock file is tracked.
 packages/*/pubspec.lock
 
+# Generated code (*.freezed.dart, *.g.dart) is intentionally NOT ignored: these
+# packages are consumed as git dependencies, so pub serves whatever the
+# repository contains. Committing the output is what frees consumers from
+# running build_runner. CI regenerates and fails on drift.
+
 # IDE
 .idea/
 *.iml

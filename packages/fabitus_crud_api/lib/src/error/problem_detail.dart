@@ -1,15 +1,30 @@
 import 'package:collection/collection.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'problem_detail.freezed.dart';
 
 /// A single field level validation error.
 ///
-/// Backends disagree on the wire format, so [ConstraintViolation.fromJson]
-/// accepts the common spellings: `field`, `propertyPath` or `name` for the
-/// field, and `message`, `defaultMessage` or `reason` for the text.
-class ConstraintViolation {
+/// [toString] is the compact `field: message` form, so a list of violations can
+/// be joined straight into a message.
+@Freezed(fromJson: false, toJson: false, toStringOverride: false)
+abstract class ConstraintViolation with _$ConstraintViolation {
   /// Creates a violation for [field] with the given [message].
-  const ConstraintViolation({required this.field, required this.message});
+  const factory ConstraintViolation({
+    /// Name of the offending property, for example `title` or `address.zip`.
+    required String field,
+
+    /// Human readable description of what is wrong with [field].
+    required String message,
+  }) = _ConstraintViolation;
+
+  const ConstraintViolation._();
 
   /// Reads a violation from its JSON representation.
+  ///
+  /// Backends disagree on the wire format, so the common spellings are
+  /// accepted: `field`, `propertyPath` or `name` for the field, and `message`,
+  /// `defaultMessage` or `reason` for the text.
   factory ConstraintViolation.fromJson(Map<String, dynamic> json) =>
       ConstraintViolation(
         field:
@@ -20,27 +35,11 @@ class ConstraintViolation {
                 as String,
       );
 
-  /// Name of the offending property, for example `title` or `address.zip`.
-  final String field;
-
-  /// Human readable description of what is wrong with [field].
-  final String message;
-
   /// The JSON representation of this violation.
   Map<String, dynamic> toJson() => {'field': field, 'message': message};
 
   @override
   String toString() => '$field: $message';
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ConstraintViolation &&
-          other.field == field &&
-          other.message == message;
-
-  @override
-  int get hashCode => Object.hash(field, message);
 }
 
 /// A machine readable error body as defined by RFC 9457 (formerly RFC 7807),
@@ -48,17 +47,35 @@ class ConstraintViolation {
 ///
 /// Unknown members are kept in [extensions] so application specific fields are
 /// not lost.
-class ProblemDetail {
+@Freezed(fromJson: false, toJson: false)
+abstract class ProblemDetail with _$ProblemDetail {
   /// Creates a problem detail.
-  const ProblemDetail({
-    this.type,
-    this.title,
-    this.status,
-    this.detail,
-    this.instance,
-    this.violations = const [],
-    this.extensions = const {},
-  });
+  const factory ProblemDetail({
+    /// URI identifying the problem type, for example
+    /// `https://fabit.us/problem/constraint-violation`.
+    String? type,
+
+    /// Short, human readable summary of the problem type.
+    String? title,
+
+    /// The HTTP status code the origin server generated for this occurrence.
+    int? status,
+
+    /// Human readable explanation specific to this occurrence.
+    String? detail,
+
+    /// URI identifying the specific occurrence of the problem.
+    String? instance,
+
+    /// Field level validation errors, empty when the problem is not a
+    /// validation failure.
+    @Default(<ConstraintViolation>[]) List<ConstraintViolation> violations,
+
+    /// Members of the body that are not part of the standard.
+    @Default(<String, dynamic>{}) Map<String, dynamic> extensions,
+  }) = _ProblemDetail;
+
+  const ProblemDetail._();
 
   /// Reads a problem detail from a decoded JSON body.
   ///
@@ -73,7 +90,7 @@ class ProblemDetail {
       'violations',
       'errors',
     };
-    final rawViolations = (json['violations'] ?? json['errors']);
+    final rawViolations = json['violations'] ?? json['errors'];
     return ProblemDetail(
       type: json['type'] as String?,
       title: json['title'] as String?,
@@ -109,29 +126,6 @@ class ProblemDetail {
     return null;
   }
 
-  /// URI identifying the problem type, for example
-  /// `https://fabit.us/problem/constraint-violation`.
-  final String? type;
-
-  /// Short, human readable summary of the problem type.
-  final String? title;
-
-  /// The HTTP status code the origin server generated for this occurrence.
-  final int? status;
-
-  /// Human readable explanation specific to this occurrence.
-  final String? detail;
-
-  /// URI identifying the specific occurrence of the problem.
-  final String? instance;
-
-  /// Field level validation errors, empty when the problem is not a validation
-  /// failure.
-  final List<ConstraintViolation> violations;
-
-  /// Members of the body that are not part of the standard.
-  final Map<String, dynamic> extensions;
-
   /// The most specific human readable message available, falling back through
   /// [detail], [title] and [type].
   String get message => detail ?? title ?? type ?? 'Unknown problem';
@@ -142,16 +136,13 @@ class ProblemDetail {
 
   /// The JSON representation of this problem detail.
   Map<String, dynamic> toJson() => {
-    if (type != null) 'type': type,
-    if (title != null) 'title': title,
-    if (status != null) 'status': status,
-    if (detail != null) 'detail': detail,
-    if (instance != null) 'instance': instance,
+    'type': ?type,
+    'title': ?title,
+    'status': ?status,
+    'detail': ?detail,
+    'instance': ?instance,
     if (violations.isNotEmpty)
       'violations': violations.map((v) => v.toJson()).toList(growable: false),
     ...extensions,
   };
-
-  @override
-  String toString() => 'ProblemDetail($message)';
 }

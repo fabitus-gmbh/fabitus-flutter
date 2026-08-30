@@ -123,6 +123,26 @@ void main() {
     });
   });
 
+  group('CrudEvent', () {
+    test('equality is by value', () {
+      expect(
+        const CrudEntityCreated<Todo>(Todo(id: '1', title: 'One')),
+        const CrudEntityCreated<Todo>(Todo(id: '1', title: 'One')),
+      );
+      expect(
+        const CrudEntityCreated<Todo>(Todo(id: '1', title: 'One')),
+        isNot(const CrudEntityUpdated<Todo>(Todo(id: '1', title: 'One'))),
+      );
+    });
+
+    test('the union constructors and the variant classes agree', () {
+      expect(
+        const CrudEvent<Todo>.deleted('1'),
+        const CrudEntityDeleted<Todo>('1'),
+      );
+    });
+  });
+
   group('PagingCrudService', () {
     test('forwards findPage to the delegate', () async {
       final service = PagingCrudService<Todo, String>(

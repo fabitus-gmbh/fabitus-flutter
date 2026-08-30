@@ -12,20 +12,23 @@ void main() {
     });
   });
 
-  group('randomStringId', () {
-    test('produces ids of the requested length', () {
-      expect(randomStringId().length, 16);
-      expect(randomStringId(length: 4).length, 4);
+  group('newUuid', () {
+    test('produces a version 4 UUID', () {
+      expect(
+        newUuid(),
+        matches(
+          RegExp(
+            r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-'
+            r'[0-9a-f]{12}$',
+          ),
+        ),
+      );
     });
 
     test('produces distinct ids', () {
-      final ids = {for (var i = 0; i < 500; i++) randomStringId()};
+      final ids = {for (var i = 0; i < 500; i++) newUuid()};
 
       expect(ids, hasLength(500));
-    });
-
-    test('uses only URL safe characters', () {
-      expect(randomStringId(length: 64), matches(RegExp(r'^[0-9a-z]+$')));
     });
   });
 }

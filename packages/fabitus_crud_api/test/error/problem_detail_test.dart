@@ -95,6 +95,39 @@ void main() {
     expect(problem.violationFor('other'), isNull);
   });
 
+  test('copyWith replaces a single member', () {
+    const problem = ProblemDetail(title: 'Bad Request', status: 400);
+
+    expect(problem.copyWith(status: 422).status, 422);
+    expect(problem.copyWith(status: 422).title, 'Bad Request');
+  });
+
+  test('equality is by value, deep for violations', () {
+    const a = ProblemDetail(
+      title: 'x',
+      violations: [ConstraintViolation(field: 'title', message: 'blank')],
+    );
+    const b = ProblemDetail(
+      title: 'x',
+      violations: [ConstraintViolation(field: 'title', message: 'blank')],
+    );
+
+    expect(a, b);
+    expect(a.hashCode, b.hashCode);
+  });
+
+  test('a violation reads as "field: message"', () {
+    const violations = [
+      ConstraintViolation(field: 'title', message: 'must not be blank'),
+      ConstraintViolation(field: 'due', message: 'must be in the future'),
+    ];
+
+    expect(
+      violations.join('\n'),
+      'title: must not be blank\ndue: must be in the future',
+    );
+  });
+
   test('toJson omits absent members', () {
     expect(const ProblemDetail(title: 'Only').toJson(), {'title': 'Only'});
   });

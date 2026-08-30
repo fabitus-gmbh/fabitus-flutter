@@ -7,6 +7,12 @@ void main() {
       expect(const OffsetPageRequest(page: 3, size: 20).offset, 60);
     });
 
+    test('copyWith clears a cursor when null is passed', () {
+      const request = CursorPageRequest(size: 10, cursor: 'abc');
+
+      expect(request.copyWith(cursor: null).cursor, isNull);
+    });
+
     test('next and previous move by one page', () {
       const request = OffsetPageRequest(page: 1, size: 10);
 
@@ -72,10 +78,10 @@ void main() {
       expect(request.toQueryParameters(), {'size': 10});
     });
 
-    test('withCursor carries size and sort over', () {
+    test('copyWith carries size and sort over', () {
       final request = CursorPageRequest(size: 10, sort: Sort.by('title'));
 
-      final next = request.withCursor('abc');
+      final next = request.copyWith(cursor: 'abc');
 
       expect(next.cursor, 'abc');
       expect(next.size, 10);

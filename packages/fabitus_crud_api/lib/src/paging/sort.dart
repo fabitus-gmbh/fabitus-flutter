@@ -1,4 +1,6 @@
-import 'package:collection/collection.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'sort.freezed.dart';
 
 /// The direction a property is sorted in.
 enum SortDirection {
@@ -17,15 +19,21 @@ enum SortDirection {
 }
 
 /// A single `property, direction` pair.
-class SortOrder {
+///
+/// [toString] is the query representation, so an order reads as
+/// `createdAt,DESC` in logs.
+@Freezed(toStringOverride: false)
+abstract class SortOrder with _$SortOrder {
   /// Sorts by [property] in the given [direction].
-  const SortOrder(this.property, [this.direction = SortDirection.asc]);
+  const factory SortOrder(
+    /// The name of the property to sort by, as the backend knows it.
+    String property, [
 
-  /// The name of the property to sort by, as the backend knows it.
-  final String property;
+    /// Whether to sort ascending or descending.
+    @Default(SortDirection.asc) SortDirection direction,
+  ]) = _SortOrder;
 
-  /// Whether to sort ascending or descending.
-  final SortDirection direction;
+  const SortOrder._();
 
   /// This order with the direction flipped.
   SortOrder get reversed => SortOrder(
@@ -38,35 +46,30 @@ class SortOrder {
 
   @override
   String toString() => toQueryValue();
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is SortOrder &&
-          other.property == property &&
-          other.direction == direction;
-
-  @override
-  int get hashCode => Object.hash(property, direction);
 }
 
 /// An ordered list of [SortOrder]s, the equivalent of Spring's `Sort`.
 ///
 /// ```dart
-/// const Sort.unsorted();
+/// Sort.unsorted;
 /// Sort.by('title');
 /// Sort.by('createdAt', SortDirection.desc).and(Sort.by('title'));
 /// ```
-class Sort {
+@Freezed(toStringOverride: false)
+abstract class Sort with _$Sort {
   /// Creates a sort from an explicit list of [orders].
-  const Sort(this.orders);
+  const factory Sort(
+    /// The orders, applied from first to last.
+    List<SortOrder> orders,
+  ) = _Sort;
 
-  /// A sort that imposes no order at all.
-  const Sort.unsorted() : orders = const [];
+  const Sort._();
 
   /// Sorts by a single [property].
-  Sort.by(String property, [SortDirection direction = SortDirection.asc])
-    : orders = [SortOrder(property, direction)];
+  factory Sort.by(
+    String property, [
+    SortDirection direction = SortDirection.asc,
+  ]) => Sort([SortOrder(property, direction)]);
 
   /// Parses the Spring Data query representation, for example
   /// `['createdAt,DESC', 'title']`.
@@ -81,8 +84,8 @@ class Sort {
         ),
   ]);
 
-  /// The orders, applied from first to last.
-  final List<SortOrder> orders;
+  /// A sort that imposes no order at all.
+  static const Sort unsorted = Sort([]);
 
   /// Whether any order is defined.
   bool get isSorted => orders.isNotEmpty;
@@ -107,13 +110,4 @@ class Sort {
 
   @override
   String toString() => isUnsorted ? 'unsorted' : toQueryValue().join('; ');
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Sort &&
-          const ListEquality<SortOrder>().equals(other.orders, orders);
-
-  @override
-  int get hashCode => const ListEquality<SortOrder>().hash(orders);
 }

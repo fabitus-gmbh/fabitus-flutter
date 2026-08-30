@@ -7,8 +7,10 @@ pagination, a typed error model, and three interchangeable implementations
 Write a screen once against `CrudRepository<Todo, String>` and decide later
 whether it is served from a fake, from local storage or from your backend.
 
-- **No code generation.** No `build_runner`, no `freezed`, no `json_serializable`
-  for anything this package provides.
+- **No `build_runner` for consumers.** The value types are `freezed` classes, so
+  you get `copyWith`, value equality and exhaustive `switch` for free - and the
+  generated code is committed, so depending on this package pulls in no build
+  step of your own.
 - **No transport dependency.** No `dio`, no `http`, no Flutter. It runs on the
   VM, in the browser and inside Flutter alike.
 - **Errors are values.** Repositories return `CrudResult`, they never throw.
@@ -43,6 +45,10 @@ dependencies:
 import 'package:fabitus_crud_api/fabitus_crud_api.dart';
 ```
 
+Runtime dependencies are `collection`, `freezed_annotation`, `logging`, `meta`
+and `uuid`. You do **not** need `build_runner` or `freezed` yourself - the
+generated code ships with the package.
+
 ## Concepts
 
 If you know Spring Data, you know the vocabulary:
@@ -71,8 +77,9 @@ CrudApi (throws)  ->  RemoteCrudRepository  ->  CrudService (adds events)
 
 ## Quick start
 
-An entity implements `CrudEntity<ID>`. Nothing is generated, so a hand written
-class works, and so does a `freezed` class that adds `implements CrudEntity<String>`.
+An entity implements `CrudEntity<ID>`: an `id` and a `toJson()`. A hand written
+class works, and so does a `freezed` class that adds
+`implements CrudEntity<String>` - this package does not care which.
 
 ```dart
 class Todo implements CrudEntity<String> {
@@ -139,8 +146,10 @@ final created = await repository.create(const Todo(title: 'Ship it'));
 // created.dataOrNull!.id is a generated 16 character id
 ```
 
-Ids default to `randomStringId()`. For a non-`String` id, or for RFC 4122 UUIDs,
-pass your own generator:
+Ids default to `newUuid()`, a random version 4 UUID. Version 4 is the right
+default on a client: it needs no coordination, so two devices creating entities
+offline will not collide. For a non-`String` id, or for ids the backend hands
+out, pass your own generator:
 
 ```dart
 InMemoryCrudRepository<Invoice, int>(
@@ -353,6 +362,10 @@ const request = CursorPageRequest(size: 20);
 final page = (await repository.findPage(request)).getOrThrow();
 ```
 
+Every request and page is a `freezed` class, so `copyWith` is available:
+`request.copyWith(page: 2)`, `request.copyWith(sort: Sort.by('title'))`,
+`request.copyWith(cursor: null)` to go back to the first page.
+
 `nextPageRequest` carries size and sort over and returns `null` on the last
 page, which is all an infinite scroll needs:
 
@@ -547,6 +560,7 @@ dart test
 | Type | Purpose |
 | --- | --- |
 | `CrudEntity<ID>` | what an entity must provide: `id` and `toJson()` |
+| `IdGenerator`, `newUuid` | ids for locally created entities |
 | `EntityCodec<T>` | `fromJson`/`toJson` pair for local stores |
 | `CrudResult<T>` | `CrudSuccess<T>` or `CrudFailure<T>` |
 | `CrudException` | sealed error hierarchy, `CrudException.fromStatusCode` |
@@ -573,14 +587,27 @@ reasons - offline, 404, a rejected form. Making that part of the return type
 means a caller cannot forget it, and `sealed` turns "did you handle the error?"
 into a compile time question.
 
+**Why is `fromJson` hand written?** The parsing is deliberately tolerant:
+`ProblemDetail` reads violations from `violations` or `errors`, `Page` accepts
+`content`, `items` or `data` and picks its variant from the keys that are
+present. `json_serializable` cannot express that, so these types use freezed for
+equality and `copyWith` only, with `@Freezed(fromJson: false, toJson: false)`.
+
 **Why no `dio` dependency?** The transport is the one thing every project picks
 differently. Keeping it out means this package works with `dio`, `http`, a
 generated OpenAPI client or a websocket, and it keeps the dependency
 footprint at `collection`, `logging` and `meta`.
 
-**Why no code generation?** A foundation package that requires `build_runner`
-forces every consumer into it. Your entities can still be `freezed` classes -
-they just add `implements CrudEntity<String>`.
+**Why freezed, and why is the generated code committed?** The value types -
+`Sort`, `PageRequest`, `Page`, `ProblemDetail`, `CrudEvent` - are `freezed`
+classes, which is where `copyWith` and value equality come from. Committing the
+`.freezed.dart` files means a consumer needs no build step: the package is used
+through a git dependency, and pub serves whatever is in the repository. CI
+regenerates on every push and fails if the committed output has drifted.
+
+`CrudResult` and `CrudException` are deliberately hand written. `copyWith` on an
+exception is meaningless, and freezed's `==` would compare the `StackTrace` of a
+`CrudFailure`, so two logically equal failures would not be equal.
 
 **Why two type parameters?** `CrudRepository<Todo, String>` is more to type than
 `CrudRepository<Todo>`, but it makes `findById` and `deleteById` type safe and

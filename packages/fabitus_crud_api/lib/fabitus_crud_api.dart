@@ -10,7 +10,7 @@
 library;
 
 export 'src/core/crud_entity.dart';
-export 'src/core/id_generator.dart' show IdGenerator, randomStringId;
+export 'src/core/id_generator.dart' show IdGenerator, newUuid;
 export 'src/error/crud_error_mapper.dart';
 export 'src/error/crud_exception.dart';
 export 'src/error/crud_result.dart';

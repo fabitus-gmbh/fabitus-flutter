@@ -4,7 +4,7 @@ import 'package:test/test.dart';
 void main() {
   group('Sort', () {
     test('unsorted has no orders', () {
-      const sort = Sort.unsorted();
+      const sort = Sort.unsorted;
 
       expect(sort.isUnsorted, isTrue);
       expect(sort.isSorted, isFalse);

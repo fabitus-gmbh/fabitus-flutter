@@ -9,9 +9,6 @@ analyzer:
     strict-raw-types: true
   errors:
     todo: ignore
-  exclude:
-    - "**/*.g.dart"
-    - "**/*.freezed.dart"
 
 linter:
   rules:

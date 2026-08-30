@@ -23,6 +23,20 @@ jobs:
       - name: Install dependencies
         run: dart pub get
 
+      # Generated code is committed so consumers need no build step. Regenerate
+      # it here and fail if the committed output has drifted.
+      - name: Regenerate code
+        run: dart run build_runner build
+        working-directory: packages/fabitus_crud_api
+
+      - name: Verify committed generated code is up to date
+        run: |
+          if ! git diff --quiet; then
+            echo "::error::Generated code is out of date. Run 'dart run build_runner build' in the affected package and commit the result."
+            git diff --stat
+            exit 1
+          fi
+
       - name: Verify formatting
         run: dart format --output=none --set-exit-if-changed .
 

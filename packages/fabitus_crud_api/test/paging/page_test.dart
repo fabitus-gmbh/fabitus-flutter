@@ -47,18 +47,25 @@ void main() {
       expect(const OffsetPage<int>(content: [], size: 2).totalPages, isNull);
     });
 
-    test('empty is a zero sized page', () {
-      const page = OffsetPage<int>.empty();
+    test('an empty page has no content and no next page', () {
+      const page = OffsetPage<int>(size: 0);
 
       expect(page.isEmpty, isTrue);
       expect(page.hasNext, isFalse);
+    });
+
+    test('copyWith replaces a single member', () {
+      const page = OffsetPage<int>(content: [1], size: 2, totalElements: 5);
+
+      expect(page.copyWith(totalElements: 1).hasNext, isFalse);
+      expect(page.copyWith(totalElements: 1).content, [1]);
     });
 
     test('nextPageRequest advances, and is null on the last page', () {
       const page = OffsetPage<int>(content: [1, 2], size: 2, totalElements: 5);
       const request = OffsetPageRequest(size: 2);
 
-      expect(page.nextPageRequest(request)?.page, 1);
+      expect((page.nextPageRequest(request)! as OffsetPageRequest).page, 1);
       expect(
         const OffsetPage<int>(content: [1], size: 2).nextPageRequest(request),
         isNull,
@@ -71,7 +78,7 @@ void main() {
       final next = page.nextPageRequest(const CursorPageRequest(size: 2));
 
       expect(next, isA<OffsetPageRequest>());
-      expect(next!.page, 1);
+      expect((next! as OffsetPageRequest).page, 1);
     });
 
     test('map converts the content and keeps the metadata', () {
@@ -82,7 +89,7 @@ void main() {
         totalElements: 5,
       );
 
-      final mapped = page.map((value) => '$value');
+      final mapped = page.map((value) => '$value') as OffsetPage<String>;
 
       expect(mapped.content, ['1', '2']);
       expect(mapped.page, 1);
@@ -119,7 +126,7 @@ void main() {
 
       final next = page.nextPageRequest(const CursorPageRequest(size: 2));
 
-      expect(next!.cursor, 'abc');
+      expect((next! as CursorPageRequest).cursor, 'abc');
     });
 
     test('nextPageRequest converts an offset request to a cursor one', () {
