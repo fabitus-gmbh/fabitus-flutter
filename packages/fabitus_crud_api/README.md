@@ -458,7 +458,84 @@ service.events.listen((event) {
 });
 ```
 
-With `get_it`:
+### Forwarding the events somewhere else
+
+The stream works when the listener lives near the service. When the events
+should reach something that already exists - an application wide event bus,
+analytics, a cache - hand it in as a `CrudEventListener` at construction:
+
+```dart
+final todos = CrudService<Todo, String>(
+  repository,
+  listeners: [
+    CrudEventListener.fromCallback(eventBus.fire),
+    AnalyticsCrudEventListener(analytics),
+  ],
+);
+```
+
+Both routes are always active: the listeners fire *and* the stream emits.
+
+#### With the `event_bus` package
+
+`EventBus.fire` takes an `Object`, and a `void Function(Object)` is a valid
+`void Function(CrudEvent<Todo>)`, so the tear-off fits as is - one bus serves
+the services of every entity type:
+
+```dart
+final eventBus = EventBus();
+
+final todos = CrudService<Todo, String>(
+  todoRepository,
+  listeners: [CrudEventListener.fromCallback(eventBus.fire)],
+);
+final invoices = CrudService<Invoice, String>(
+  invoiceRepository,
+  listeners: [CrudEventListener.fromCallback(eventBus.fire)],
+);
+```
+
+Subscribers then filter by event type, which is what an event bus is good at:
+
+```dart
+eventBus.on<CrudEntityDeleted<Todo>>().listen((event) => _remove(event.id));
+eventBus.on<CrudEvent<Todo>>().listen(_refresh);   // any change to a Todo
+```
+
+#### A listener with dependencies
+
+Implement the interface when the listener needs state or collaborators:
+
+```dart
+class AnalyticsCrudEventListener<T> implements CrudEventListener<T> {
+  const AnalyticsCrudEventListener(this._analytics);
+
+  final Analytics _analytics;
+
+  @override
+  void onCrudEvent(CrudEvent<T> event) => _analytics.track(switch (event) {
+    CrudEntityCreated() => '${T}_created',
+    CrudEntityUpdated() => '${T}_updated',
+    CrudEntityDeleted() => '${T}_deleted',
+  });
+}
+```
+
+Listeners are called synchronously, in the order given, after the write has
+already succeeded. **A listener that throws is logged and skipped**: it can
+never turn a successful save into a failure, and never stops the listeners
+behind it. The list is fixed for the lifetime of the service - to attach and
+detach at runtime, listen to `events` and cancel the subscription.
+
+> **One inference wrinkle.** When you pass listeners, give the call a type
+> context: write `CrudService<Todo, String>(...)`, or assign to a variable or
+> return type that names the arguments. Bare
+> `final s = CrudService(repository, listeners: [...]);` does not compile,
+> because `CrudService`'s type parameters are dependent
+> (`T extends CrudEntity<ID>`) and inference then cannot reach the listeners.
+> The `get_it` registration below has that context and needs nothing extra.
+
+### With `get_it`
 
 ```dart
 getIt
@@ -468,8 +545,12 @@ getIt
     () => RemotePagingCrudRepository(getIt<TodoApi>(),
         errorMapper: const DioCrudErrorMapper()),
   )
+  ..registerLazySingleton<EventBus>(EventBus.new)
   ..registerLazySingleton<PagingCrudService<Todo, String>>(
-    () => PagingCrudService(getIt()),
+    () => PagingCrudService(
+      getIt(),
+      listeners: [CrudEventListener.fromCallback(getIt<EventBus>().fire)],
+    ),
     dispose: (service) => service.dispose(),
   );
 ```
@@ -577,7 +658,8 @@ dart test
 | `KeyValueCrudRepository` | JSON document in a `KeyValueStore` |
 | `CrudApi`, `PagingCrudApi` | the retrofit client contract |
 | `RemoteCrudRepository`, `RemotePagingCrudRepository` | backend backed |
-| `CrudService`, `PagingCrudService` | repository plus event stream |
+| `CrudService`, `PagingCrudService` | repository plus event stream and listeners |
+| `CrudEventListener` | the seam for pushing events into an event bus, analytics or a cache |
 | `CrudEvent` → `CrudEntityCreated`, `CrudEntityUpdated`, `CrudEntityDeleted` | what happened |
 
 ## Design notes
@@ -613,11 +695,12 @@ exception is meaningless, and freezed's `==` would compare the `StackTrace` of a
 `CrudRepository<Todo>`, but it makes `findById` and `deleteById` type safe and
 matches Spring's `CrudRepository<T, ID>`.
 
-**Logging.** Every failure is logged to the `fabitus_crud_api` logger through
-`package:logging` before it is returned. Configure it in your app:
+**Logging.** Every failure, and every exception a `CrudEventListener` throws, is
+logged through `package:logging` before it is handled. The logger is exported as
+`crudLogger`, so there is no name to get wrong:
 
 ```dart
-Logger('fabitus_crud_api').onRecord.listen(reportToCrashlytics);
+crudLogger.onRecord.listen(reportToCrashlytics);
 ```
 
 ## License

@@ -9,10 +9,13 @@ void main() async {
   //    RemotePagingCrudRepository without touching anything below.
   final service = PagingCrudService<Todo, String>(
     InMemoryCrudRepository<Todo, String>(withId: (todo, id) => todo.copyWith(id: id)),
+    // 2a. Listeners are handed in at construction. This is where an event bus
+    //     goes: `CrudEventListener.fromCallback(eventBus.fire)`.
+    listeners: [CrudEventListener.fromCallback((event) => print('listener: $event'))],
   );
 
-  // 2. Other parts of the app can follow every write.
-  service.events.listen((event) => print('event: $event'));
+  // 2b. And anyone can follow the stream. Both routes are always active.
+  service.events.listen((event) => print('stream:   $event'));
 
   // 3. Create. The store assigns the id.
   final created = await service.create(const Todo(title: 'Write the docs'));

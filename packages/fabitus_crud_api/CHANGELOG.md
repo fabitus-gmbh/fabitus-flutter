@@ -20,4 +20,8 @@ Initial release.
 - `InMemoryCrudRepository`, `KeyValueCrudRepository` with a `KeyValueStore`
   seam, and `RemoteCrudRepository`/`RemotePagingCrudRepository` over a
   retrofit compatible `CrudApi`.
-- `CrudService`/`PagingCrudService` publishing `CrudEvent`s for every write.
+- `CrudService`/`PagingCrudService` publishing `CrudEvent`s for every write,
+  both on a broadcast stream and to any `CrudEventListener`s passed in at
+  construction. `CrudEventListener.fromCallback` adapts a plain function, so an
+  `EventBus.fire` tear-off can be handed in directly.
+- `crudLogger`, the `package:logging` logger this package reports to.

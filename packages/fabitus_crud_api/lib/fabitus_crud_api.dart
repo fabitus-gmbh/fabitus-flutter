@@ -11,6 +11,7 @@ library;
 
 export 'src/core/crud_entity.dart';
 export 'src/core/id_generator.dart' show IdGenerator, newUuid;
+export 'src/core/logging.dart';
 export 'src/error/crud_error_mapper.dart';
 export 'src/error/crud_exception.dart';
 export 'src/error/crud_result.dart';
@@ -26,4 +27,5 @@ export 'src/repository/key_value_crud_repository.dart';
 export 'src/repository/key_value_store.dart';
 export 'src/repository/remote_crud_repository.dart';
 export 'src/service/crud_event.dart';
+export 'src/service/crud_event_listener.dart';
 export 'src/service/crud_service.dart';

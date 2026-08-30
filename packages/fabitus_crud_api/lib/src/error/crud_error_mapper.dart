@@ -1,12 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:logging/logging.dart';
-
+import '../core/logging.dart';
 import 'crud_exception.dart';
 import 'crud_result.dart';
-
-final Logger _logger = Logger('fabitus_crud_api');
 
 /// Translates an arbitrary thrown object into a [CrudException].
 ///
@@ -90,7 +87,7 @@ Future<CrudResult<T>> guardCrud<T>(
     return CrudSuccess<T>(await action());
   } catch (error, stackTrace) {
     final exception = errorMapper.map(error, stackTrace);
-    _logger.severe('CRUD operation for $T failed', exception, stackTrace);
+    crudLogger.severe('CRUD operation for $T failed', exception, stackTrace);
     return CrudFailure<T>(exception, stackTrace);
   }
 }
