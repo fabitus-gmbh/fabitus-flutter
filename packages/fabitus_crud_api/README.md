@@ -24,3 +24,7 @@ import 'package:fabitus_crud_api/fabitus_crud_api.dart';
 ```
 
 See [`example/`](example/) for a runnable example.
+
+## License
+
+[MIT](LICENSE) © Fabitus GmbH.

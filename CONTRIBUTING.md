@@ -10,6 +10,10 @@
   visible change gets an entry in the package's `CHANGELOG.md`.
 - **Formatting and lints** are enforced in CI: `dart format .` and
   `dart analyze --fatal-infos` must be clean.
+- **Licensing**: everything in this repo is MIT licensed. Each package keeps a
+  copy of the root `LICENSE` file, because pub.dev only detects a license that
+  sits inside the package directory. Contributions are accepted under the same
+  license.
 
 ## Workflow
 

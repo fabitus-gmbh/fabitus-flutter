@@ -51,9 +51,16 @@ cd packages/fabitus_crud_api && dart test
    `resolution: workspace`.
 2. Add `packages/<name>` to the `workspace:` list in the root `pubspec.yaml`.
 3. Add `analysis_options.yaml` containing `include: ../../analysis_options.yaml`.
-4. Run `dart pub get` in the repo root.
+4. Copy the root `LICENSE` into the package directory - pub.dev only detects a
+   license file that sits next to the package's `pubspec.yaml`.
+5. Run `dart pub get` in the repo root.
 
 Flutter packages work the same way; they use `flutter pub get` and depend on
 `flutter_lints` instead of `lints`.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for conventions.
+
+## License
+
+[MIT](LICENSE) © Fabitus GmbH. Every package carries its own copy of the
+license file so it is picked up when the package is published.
