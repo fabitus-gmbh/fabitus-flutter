@@ -1,0 +1,20 @@
+name: fabitus_crud_api
+description: >-
+  Fabitus building blocks for talking to CRUD style REST APIs from Dart and
+  Flutter applications.
+version: 0.1.0
+repository: https://github.com/fabitus-gmbh/fabitus-flutter
+issue_tracker: https://github.com/fabitus-gmbh/fabitus-flutter/issues
+
+# Resolved together with the other packages of the workspace root.
+resolution: workspace
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  meta: ^1.16.0
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.26.0
