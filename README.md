@@ -8,7 +8,7 @@ dependency resolution and one `pubspec.lock` at the repo root.
 
 | Package | Description |
 | --- | --- |
-| [`fabitus_crud_api`](packages/fabitus_crud_api) | Building blocks for talking to CRUD style REST APIs. |
+| [`fabitus_crud_api`](packages/fabitus_crud_api) | Spring Data style CRUD repositories, pagination and error handling, with in-memory, key-value and remote implementations. |
 
 ## Layout
 
