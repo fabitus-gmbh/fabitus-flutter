@@ -9,6 +9,7 @@ environment:
 
 workspace:
   - packages/fabitus_crud_api
+  - packages/fabitus_crud_api_bloc
   - packages/fabitus_crud_api_dio
   - packages/fabitus_feature_modules
   - packages/fabitus_problem_details

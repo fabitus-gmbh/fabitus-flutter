@@ -15,13 +15,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dart-lang/setup-dart@v1
+      # One package depends on Flutter, which makes the whole workspace resolve
+      # through the Flutter SDK. The Dart SDK it bundles serves format/analyze.
+      - uses: subosito/flutter-action@v2
         with:
-          sdk: stable
+          channel: stable
+          cache: true
 
       # A single resolve for the whole workspace.
       - name: Install dependencies
-        run: dart pub get
+        run: flutter pub get
 
       # Generated code is committed so consumers need no build step. Regenerate
       # it here and fail if the committed output has drifted.
@@ -52,7 +55,11 @@ jobs:
       - name: Run tests
         run: |
           for pkg in packages/*/; do
-            echo "::group::dart test in $pkg"
-            (cd "$pkg" && dart test)
+            echo "::group::tests in $pkg"
+            if grep -q '^  flutter:$' "$pkg/pubspec.yaml"; then
+              (cd "$pkg" && flutter test)
+            else
+              (cd "$pkg" && dart test)
+            fi
             echo "::endgroup::"
           done

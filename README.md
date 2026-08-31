@@ -9,6 +9,7 @@ dependency resolution and one `pubspec.lock` at the repo root.
 | Package | Description |
 | --- | --- |
 | [`fabitus_crud_api`](packages/fabitus_crud_api) | Spring Data style CRUD repositories, pagination and error handling, with in-memory, key-value and remote implementations. |
+| [`fabitus_crud_api_bloc`](packages/fabitus_crud_api_bloc) | Cubits and widgets for driving `fabitus_crud_api` from Flutter: load, paginate, edit. |
 | [`fabitus_crud_api_dio`](packages/fabitus_crud_api_dio) | Dio adapter for `fabitus_crud_api`: a ready made `CrudErrorMapper`. |
 | [`fabitus_feature_modules`](packages/fabitus_feature_modules) | Declare an app's features as modules with their own routes, navigation and role based access rights. |
 | [`fabitus_problem_details`](packages/fabitus_problem_details) | RFC 9457 problem details for HTTP APIs, with tolerant parsing. |
@@ -35,26 +36,32 @@ dependency resolution and one `pubspec.lock` at the repo root.
 ```
 
 `fabitus_crud_api`, `fabitus_problem_details` and `fabitus_feature_modules` are
-independent of each other: the first has no transport and no opinion about a
-backend's error format, the second is that format on its own, the third knows
-nothing about a router or a widget toolkit. `fabitus_crud_api_dio` is the one
-adapter, depending on the first two plus `dio`, so a Dio project gets the error
-mapper instead of writing it. Depend on it only where you use Dio.
+independent of each other and free of Flutter: the first has no transport and no
+opinion about a backend's error format, the second is that format on its own, the
+third knows nothing about a router or a widget toolkit.
+
+Two adapters sit on top, and you depend on them only where they apply:
+`fabitus_crud_api_dio` (Dio, plus the RFC 9457 reading) and
+`fabitus_crud_api_bloc` (Flutter and `flutter_bloc`). They know nothing about
+each other - the bloc layer sees a typed `CrudException` whoever produced it.
 
 ## Getting started
 
-Requires the Dart SDK 3.9 or newer (bundled with Flutter 3.35+).
+Requires Flutter 3.24 or newer (for the Dart 3.9 SDK it bundles). One package
+depends on Flutter, so the workspace resolves through the Flutter SDK.
 
 ```sh
-dart pub get          # resolves every package in the workspace at once
+flutter pub get       # resolves every package in the workspace at once
 dart analyze
 dart format .
 ```
 
-Run the tests of a single package from its directory:
+Run the tests of a single package from its directory - `dart test` for a pure
+Dart package, `flutter test` for a Flutter one:
 
 ```sh
 cd packages/fabitus_crud_api && dart test
+cd packages/fabitus_crud_api_bloc && flutter test
 ```
 
 ## Adding a package

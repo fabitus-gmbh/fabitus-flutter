@@ -40,14 +40,24 @@ generated code remain visible. They also carry `// dart format off`, so
 > freezed 4 requires Dart 3.13. The packages here are pinned to the freezed 3.x
 > line until the SDK constraint is raised.
 
+## Flutter and pure Dart packages
+
+Most packages here are pure Dart. `fabitus_crud_api_bloc` depends on Flutter,
+which makes the **whole workspace** resolve through the Flutter SDK: use
+`flutter pub get` at the root, not `dart pub get`. `dart format` and
+`dart analyze` work either way.
+
+Tests follow the package: `dart test` for a pure Dart one, `flutter test` for a
+Flutter one. CI picks per package by looking for a `flutter:` dependency.
+
 ## Workflow
 
 ```sh
-dart pub get                 # from the repo root, resolves all packages
-cd packages/<name> && dart run build_runner build
+flutter pub get              # from the repo root, resolves all packages
+cd packages/<name> && dart run build_runner build   # if the package uses freezed
 dart format .
 dart analyze --fatal-infos
-cd packages/<name> && dart test
+cd packages/<name> && dart test     # or: flutter test
 ```
 
 Branch off `main`, open a pull request, keep CI green.
