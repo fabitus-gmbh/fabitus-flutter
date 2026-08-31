@@ -10,6 +10,7 @@ dependency resolution and one `pubspec.lock` at the repo root.
 | --- | --- |
 | [`fabitus_crud_api`](packages/fabitus_crud_api) | Spring Data style CRUD repositories, pagination and error handling, with in-memory, key-value and remote implementations. |
 | [`fabitus_crud_api_dio`](packages/fabitus_crud_api_dio) | Dio adapter for `fabitus_crud_api`: a ready made `CrudErrorMapper`. |
+| [`fabitus_feature_modules`](packages/fabitus_feature_modules) | Declare an app's features as modules with their own routes, navigation and role based access rights. |
 | [`fabitus_problem_details`](packages/fabitus_problem_details) | RFC 9457 problem details for HTTP APIs, with tolerant parsing. |
 
 ## Layout
@@ -33,11 +34,12 @@ dependency resolution and one `pubspec.lock` at the repo root.
         └── ...                # same shape
 ```
 
-`fabitus_crud_api` and `fabitus_problem_details` are independent: the first has
-no transport and no opinion about a backend's error format, the second is that
-format on its own. `fabitus_crud_api_dio` is the thin adapter that depends on
-both plus `dio`, so a Dio project gets the error mapper instead of writing it.
-Depend on it only where you use Dio.
+`fabitus_crud_api`, `fabitus_problem_details` and `fabitus_feature_modules` are
+independent of each other: the first has no transport and no opinion about a
+backend's error format, the second is that format on its own, the third knows
+nothing about a router or a widget toolkit. `fabitus_crud_api_dio` is the one
+adapter, depending on the first two plus `dio`, so a Dio project gets the error
+mapper instead of writing it. Depend on it only where you use Dio.
 
 ## Getting started
 

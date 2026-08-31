@@ -1,0 +1,31 @@
+name: fabitus_feature_modules
+description: >-
+  Declare an app's features as modules that carry their own routes, navigation
+  entry and role based access rights, and query one registry for what the
+  current user may do.
+version: 0.1.0
+repository: https://github.com/fabitus-gmbh/fabitus-flutter
+issue_tracker: https://github.com/fabitus-gmbh/fabitus-flutter/issues
+topics:
+  - modular
+  - routing
+  - authorization
+  - access-control
+
+# Resolved together with the other packages of the workspace root.
+resolution: workspace
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  collection: ^1.19.0
+  freezed_annotation: ^3.1.0
+
+dev_dependencies:
+  build_runner: ">=2.4.0 <3.0.0"
+  # freezed 4 requires Dart >= 3.13; pinned to the 3.x line until the SDK
+  # constraint of this package is raised.
+  freezed: ^3.2.5
+  lints: ^6.0.0
+  test: ^1.26.0

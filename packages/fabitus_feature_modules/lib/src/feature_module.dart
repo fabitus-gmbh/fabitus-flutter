@@ -1,0 +1,76 @@
+import 'feature_access.dart';
+
+/// One feature of an app, declared in one place.
+///
+/// A module says what it is called, what routes it contributes and what its
+/// entry in the navigation looks like. What it deliberately does *not* say is
+/// who may use it: access rights come from the backend at runtime and are held
+/// by the [FeatureRegistry], so a module stays a `const` value that can be
+/// constructed in a test without a logged in user.
+///
+/// The four type parameters are the four things only your app can decide:
+///
+/// * [F] - how features are identified, usually an `enum`, so a `switch` over
+///   them is exhaustive.
+/// * [R] - what a role is: a Cognito group, a realm role, a [String].
+/// * [TRoute] - your router's route type. Nothing here knows about `go_router`;
+///   `RouteBase` is simply what [TRoute] happens to be in a `go_router` app.
+/// * [TNav] - whatever your navigation is built from, typically a `Widget`.
+///
+/// Name them once and every declaration downstream reads plainly:
+///
+/// ```dart
+/// typedef AppModule = FeatureModule<Feature, Role, RouteBase, Widget>;
+///
+/// class RssModule extends AppModule {
+///   const RssModule();
+///
+///   @override
+///   Feature get id => Feature.rss;
+///
+///   @override
+///   List<RouteBase> get routes => [
+///     GoRoute(path: '/rss', builder: (_, _) => const RssOverviewPage()),
+///     GoRoute(path: '/rss/:id', builder: (_, state) =>
+///         RssEditPage(id: state.pathParameters['id']!)),
+///   ];
+///
+///   @override
+///   Widget get navigation =>
+///       const NavigationItem(icon: Icon(Icons.rss_feed), target: '/rss');
+/// }
+/// ```
+abstract class FeatureModule<F extends Object, R extends Object, TRoute, TNav> {
+  /// Creates a module.
+  const FeatureModule();
+
+  /// What this feature is called, and the key its access rights arrive under.
+  ///
+  /// Unique across the registry; [FeatureRegistry] rejects a duplicate.
+  F get id;
+
+  /// The routes this feature contributes, in the order they should be added.
+  ///
+  /// Return an empty list for a feature that has no pages of its own.
+  List<TRoute> get routes;
+
+  /// This feature's entry in the navigation, or `null` when it has none.
+  ///
+  /// Whether it is *shown* is not decided here - ask
+  /// [FeatureRegistry.navigationFor], which filters by the roles of the user
+  /// actually looking at it.
+  TNav? get navigation => null;
+
+  /// The access rights to use while the backend sends none for this feature.
+  ///
+  /// A module that ships before the server knows about it would otherwise be
+  /// locked for everyone. Spell out the rights it should have in the meantime
+  /// and they are dropped the day the backend starts sending its own - no
+  /// special case anywhere else.
+  ///
+  /// `null`, the default, means a feature the backend does not know is denied.
+  FeatureAccess<R>? get fallbackAccess => null;
+
+  @override
+  String toString() => '$runtimeType($id)';
+}
