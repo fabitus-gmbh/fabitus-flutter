@@ -12,7 +12,7 @@ import 'feature_module.dart';
 ///
 /// ```dart
 /// final registry = FeatureRegistry<Feature, Role, RouteBase, Widget>(
-///   modules: const [RssModule(), TaxonomyModule()],
+///   modules: const [TodoModule(), LabelModule()],
 ///   access: parseFeatureAccess(
 ///     await api.getAccessRightConfig(),
 ///     featureFromJson: Feature.tryParse,
@@ -22,7 +22,7 @@ import 'feature_module.dart';
 ///
 /// GoRouter(routes: registry.routes);
 /// Row(children: registry.navigationFor(user.roles));
-/// if (registry.isAllowed(Feature.rss, CrudOperation.delete, user.roles)) ...
+/// if (registry.isAllowed(Feature.todos, CrudOperation.delete, user.roles)) ...
 /// ```
 ///
 /// Access is resolved once, at construction: what the backend sent, else the

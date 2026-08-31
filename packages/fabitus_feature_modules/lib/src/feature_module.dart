@@ -22,22 +22,25 @@ import 'feature_access.dart';
 /// ```dart
 /// typedef AppModule = FeatureModule<Feature, Role, RouteBase, Widget>;
 ///
-/// class RssModule extends AppModule {
-///   const RssModule();
+/// class TodoModule extends AppModule {
+///   const TodoModule();
 ///
 ///   @override
-///   Feature get id => Feature.rss;
+///   Feature get id => Feature.todos;
 ///
 ///   @override
 ///   List<RouteBase> get routes => [
-///     GoRoute(path: '/rss', builder: (_, _) => const RssOverviewPage()),
-///     GoRoute(path: '/rss/:id', builder: (_, state) =>
-///         RssEditPage(id: state.pathParameters['id']!)),
+///     GoRoute(path: '/todos', builder: (_, _) => const TodoListPage()),
+///     GoRoute(path: '/todos/:id', builder: (_, state) =>
+///         TodoEditPage(id: state.pathParameters['id']!)),
 ///   ];
 ///
 ///   @override
-///   Widget get navigation =>
-///       const NavigationItem(icon: Icon(Icons.rss_feed), target: '/rss');
+///   Widget? get navigation => const NavigationItem(
+///     icon: Icon(Icons.check_box_outlined),
+///     label: 'Todos',
+///     target: '/todos',
+///   );
 /// }
 /// ```
 abstract class FeatureModule<F extends Object, R extends Object, TRoute, TNav> {

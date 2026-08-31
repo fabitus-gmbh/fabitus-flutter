@@ -10,31 +10,31 @@ void main() {
   test('reads a list of entries, each naming its feature', () {
     final access = parse(const [
       {
-        'feature': 'RSS_MANAGEMENT',
+        'feature': 'TODO_MANAGEMENT',
         'navigation': ['editor'],
         'read': ['editor'],
         'delete': ['admin'],
       },
       {
-        'feature': 'USER_MANAGEMENT',
+        'feature': 'MEMBER_MANAGEMENT',
         'read': ['admin'],
       },
     ]);
 
-    expect(access.keys, {Feature.rss, Feature.users});
-    expect(access[Feature.rss]!.read, {Role.editor});
-    expect(access[Feature.rss]!.delete, {Role.admin});
-    expect(access[Feature.users]!.navigation, isEmpty);
+    expect(access.keys, {Feature.todos, Feature.members});
+    expect(access[Feature.todos]!.read, {Role.editor});
+    expect(access[Feature.todos]!.delete, {Role.admin});
+    expect(access[Feature.members]!.navigation, isEmpty);
   });
 
   test('reads a map keyed by feature name', () {
     final access = parse(const {
-      'RSS_MANAGEMENT': {
+      'TODO_MANAGEMENT': {
         'read': ['editor'],
       },
     });
 
-    expect(access[Feature.rss]!.read, {Role.editor});
+    expect(access[Feature.todos]!.read, {Role.editor});
   });
 
   test('skips a feature this app does not know', () {
@@ -44,12 +44,12 @@ void main() {
         'read': ['admin'],
       },
       {
-        'feature': 'RSS_MANAGEMENT',
+        'feature': 'TODO_MANAGEMENT',
         'read': ['admin'],
       },
     ]);
 
-    expect(access.keys, {Feature.rss});
+    expect(access.keys, {Feature.todos});
   });
 
   test('skips an entry that does not name its feature', () {
@@ -67,7 +67,7 @@ void main() {
     final access = parseFeatureAccess<Feature, Role>(
       const [
         {
-          'module': 'RSS_MANAGEMENT',
+          'module': 'TODO_MANAGEMENT',
           'read': ['admin'],
         },
       ],
@@ -76,7 +76,7 @@ void main() {
       featureKey: 'module',
     );
 
-    expect(access.keys, {Feature.rss});
+    expect(access.keys, {Feature.todos});
   });
 
   test('a body that is neither list nor map yields nothing', () {

@@ -1,25 +1,26 @@
 import 'package:fabitus_feature_modules/fabitus_feature_modules.dart';
 
-/// The features of the app under test.
+/// The features of the app under test: a todo list, the labels you can put on a
+/// todo, and the members of the team.
 enum Feature {
-  rss,
-  taxonomy,
-  users;
+  todos,
+  labels,
+  members;
 
   static Feature? tryParse(String name) => Feature.values.where((feature) => feature.wireName == name).firstOrNull;
 
   String get wireName => switch (this) {
-    Feature.rss => 'RSS_MANAGEMENT',
-    Feature.taxonomy => 'TAXONOMY_MANAGEMENT',
-    Feature.users => 'USER_MANAGEMENT',
+    Feature.todos => 'TODO_MANAGEMENT',
+    Feature.labels => 'LABEL_MANAGEMENT',
+    Feature.members => 'MEMBER_MANAGEMENT',
   };
 }
 
 /// The roles a user of that app can hold.
 enum Role {
+  viewer,
   editor,
-  admin,
-  support;
+  admin;
 
   static Role? tryParse(String name) => Role.values.where((role) => role.name == name).firstOrNull;
 }
@@ -62,49 +63,49 @@ typedef AppModule = FeatureModule<Feature, Role, AppRoute, NavEntry>;
 /// And the matching registry.
 typedef AppRegistry = FeatureRegistry<Feature, Role, AppRoute, NavEntry>;
 
-class RssModule extends AppModule {
-  const RssModule();
+class TodoModule extends AppModule {
+  const TodoModule();
 
   @override
-  Feature get id => Feature.rss;
+  Feature get id => Feature.todos;
 
   @override
-  List<AppRoute> get routes => const [AppRoute('/rss'), AppRoute('/rss/:id')];
+  List<AppRoute> get routes => const [AppRoute('/todos'), AppRoute('/todos/:id')];
 
   @override
-  NavEntry? get navigation => const NavEntry('RSS');
+  NavEntry? get navigation => const NavEntry('Todos');
 }
 
 /// A module the backend does not know about yet, so it brings its own rights.
-class TaxonomyModule extends AppModule {
-  const TaxonomyModule();
+class LabelModule extends AppModule {
+  const LabelModule();
 
   @override
-  Feature get id => Feature.taxonomy;
+  Feature get id => Feature.labels;
 
   @override
-  List<AppRoute> get routes => const [AppRoute('/taxonomy')];
+  List<AppRoute> get routes => const [AppRoute('/labels')];
 
   @override
-  NavEntry? get navigation => const NavEntry('Taxonomies');
+  NavEntry? get navigation => const NavEntry('Labels');
 
   @override
   FeatureAccess<Role> get fallbackAccess => const FeatureAccess<Role>(
-    navigation: {Role.editor, Role.admin, Role.support},
-    read: {Role.editor, Role.admin, Role.support},
+    navigation: {Role.viewer, Role.editor, Role.admin},
+    read: {Role.viewer, Role.editor, Role.admin},
     create: {Role.admin},
     update: {Role.admin},
     delete: {Role.admin},
   );
 }
 
-/// A module without a navigation entry, reachable by deep link only.
-class UsersModule extends AppModule {
-  const UsersModule();
+/// A module without a navigation entry, reachable from the settings menu only.
+class MemberModule extends AppModule {
+  const MemberModule();
 
   @override
-  Feature get id => Feature.users;
+  Feature get id => Feature.members;
 
   @override
-  List<AppRoute> get routes => const [AppRoute('/users')];
+  List<AppRoute> get routes => const [AppRoute('/members')];
 }

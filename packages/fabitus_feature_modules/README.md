@@ -5,13 +5,13 @@ its access rights - and ask one registry what the current user may do.
 
 ```dart
 final registry = AppRegistry(
-  modules: const [RssModule(), TaxonomyModule(), UserModule()],
+  modules: const [TodoModule(), LabelModule(), MemberModule()],
   access: parseFeatureAccess(await api.accessRights(), ...),
 );
 
 GoRouter(routes: registry.routes);                          // the router
 Row(children: registry.navigationFor(user.roles));           // the app bar
-registry.isAllowed(Feature.rss, CrudOperation.delete, user.roles);
+registry.isAllowed(Feature.todos, CrudOperation.delete, user.roles);
 ```
 
 - **No router.** `go_router` is not a dependency; it is simply what the route
@@ -72,31 +72,37 @@ typedef AppModule = FeatureModule<Feature, Role, RouteBase, Widget>;
 typedef AppRegistry = FeatureRegistry<Feature, Role, RouteBase, Widget>;
 ```
 
-Everything downstream then reads as `class RssModule extends AppModule`.
+Everything downstream then reads as `class TodoModule extends AppModule`.
 
 ## Guide 1: declaring a module
 
+The app below is a todo list: todos, the labels you can put on one, and the
+members of the team.
+
 ```dart
-enum Feature { rss, taxonomy, users }
+enum Feature { todos, labels, members }
 
-enum Role { editor, admin, support }
+enum Role { viewer, editor, admin }
 
-class RssModule extends AppModule {
-  const RssModule();
+class TodoModule extends AppModule {
+  const TodoModule();
 
   @override
-  Feature get id => Feature.rss;
+  Feature get id => Feature.todos;
 
   @override
   List<RouteBase> get routes => [
-    GoRoute(path: '/rss', builder: (_, _) => const RssOverviewPage()),
-    GoRoute(path: '/rss/:id', builder: (_, state) =>
-        RssEditPage(id: state.pathParameters['id']!)),
+    GoRoute(path: '/todos', builder: (_, _) => const TodoListPage()),
+    GoRoute(path: '/todos/:id', builder: (_, state) =>
+        TodoEditPage(id: state.pathParameters['id']!)),
   ];
 
   @override
-  Widget? get navigation =>
-      const NavigationItem(icon: Icon(Icons.rss_feed), label: 'RSS', target: '/rss');
+  Widget? get navigation => const NavigationItem(
+    icon: Icon(Icons.check_box_outlined),
+    label: 'Todos',
+    target: '/todos',
+  );
 }
 ```
 
@@ -114,11 +120,11 @@ A typical configuration endpoint returns one entry per feature:
 ```json
 [
   {
-    "feature": "RSS_MANAGEMENT",
+    "feature": "TODO_MANAGEMENT",
     "navigation": ["editor", "admin"],
     "read": ["editor", "admin"],
-    "create": ["admin"],
-    "update": ["admin"],
+    "create": ["editor", "admin"],
+    "update": ["editor", "admin"],
     "delete": ["admin"]
   }
 ]
@@ -148,7 +154,7 @@ reachable by a link for a role that should not be advertised the module.
 
 ```dart
 final registry = AppRegistry(
-  modules: const [RssModule(), TaxonomyModule(), UserModule()],
+  modules: const [TodoModule(), LabelModule(), MemberModule()],
   access: access,
 );
 ```
@@ -166,7 +172,7 @@ Register it wherever your app keeps singletons:
 
 ```dart
 getIt.registerSingletonAsync<AppRegistry>(() async => AppRegistry(
-  modules: const [RssModule(), TaxonomyModule(), UserModule()],
+  modules: const [TodoModule(), LabelModule(), MemberModule()],
   access: parseFeatureAccess(
     await getIt<UserApi>().accessRights(),
     featureFromJson: Feature.tryParse,
@@ -184,7 +190,7 @@ route type parameter, and `registry.routes` is a `List<RouteBase>`:
 typedef AppModule = FeatureModule<Feature, Role, RouteBase, Widget>;
 
 GoRouter buildRouter(AppRegistry registry) => GoRouter(
-  initialLocation: '/rss',
+  initialLocation: '/todos',
   routes: [
     ShellRoute(
       builder: (context, state, child) => AppScaffold(child: child),
@@ -200,15 +206,15 @@ may not open this" into "this does not exist". Refuse in a redirect instead:
 
 ```dart
 GoRoute(
-  path: '/rss',
+  path: '/todos',
   redirect: (context, state) => registry.isAllowed(
-    Feature.rss,
+    Feature.todos,
     CrudOperation.read,
     context.read<AuthCubit>().state.roles,
   )
       ? null
       : '/forbidden',
-  builder: (_, _) => const RssOverviewPage(),
+  builder: (_, _) => const TodoListPage(),
 );
 ```
 
@@ -232,13 +238,13 @@ A page or form usually wants every permission at once, so it can decide which
 buttons exist rather than asking one question per button:
 
 ```dart
-final allowed = registry.allowedOperations(Feature.rss, user.roles);
+final allowed = registry.allowedOperations(Feature.todos, user.roles);
 
 return Column(
   children: [
     if (allowed.contains(CrudOperation.create))
-      FilledButton(onPressed: _create, child: const Text('New feed')),
-    RssForm(readOnly: !allowed.contains(CrudOperation.update)),
+      FilledButton(onPressed: _create, child: const Text('New todo')),
+    TodoForm(readOnly: !allowed.contains(CrudOperation.update)),
     if (allowed.contains(CrudOperation.delete))
       TextButton(onPressed: _delete, child: const Text('Delete')),
   ],
@@ -253,7 +259,7 @@ package does not depend on: gate the call, and let the repository report what th
 server said.
 
 ```dart
-if (registry.isAllowed(Feature.rss, CrudOperation.delete, user.roles)) {
+if (registry.isAllowed(Feature.todos, CrudOperation.delete, user.roles)) {
   final result = await repository.deleteById(id);
 }
 ```
@@ -264,26 +270,26 @@ A module that ships before the server has a configuration for it would otherwise
 be locked for everyone. Say what it should grant in the meantime:
 
 ```dart
-class TaxonomyModule extends AppModule {
-  const TaxonomyModule();
+class LabelModule extends AppModule {
+  const LabelModule();
 
   @override
-  Feature get id => Feature.taxonomy;
+  Feature get id => Feature.labels;
 
-  /// The rights to use while the user-management API returns no
-  /// `TAXONOMY_MANAGEMENT` entry. Readable by every group, writable by admins:
-  /// taxonomy terms are shared, and a deleted term takes its assignments along,
-  /// so the stricter half of the old rule is the one to keep.
+  /// The rights to use while the backend returns no `LABEL_MANAGEMENT` entry.
+  /// Readable by every role, writable by admins only: labels are shared across
+  /// the whole board, and a deleted one vanishes from every todo that carried
+  /// it, so the stricter half of the rule is the one to keep while we guess.
   @override
   FeatureAccess<Role> get fallbackAccess => const FeatureAccess<Role>(
-    navigation: {Role.editor, Role.admin, Role.support},
-    read: {Role.editor, Role.admin, Role.support},
+    navigation: {Role.viewer, Role.editor, Role.admin},
+    read: {Role.viewer, Role.editor, Role.admin},
     create: {Role.admin},
     update: {Role.admin},
     delete: {Role.admin},
   );
 
-  // ... id, routes, navigation
+  // ... routes, navigation
 }
 ```
 
@@ -300,17 +306,17 @@ The permission model is pure Dart, so the interesting cases need no widget tree:
 ```dart
 test('an editor may read but not delete', () {
   final registry = AppRegistry(
-    modules: const [RssModule()],
+    modules: const [TodoModule()],
     access: {
-      Feature.rss: const FeatureAccess<Role>(
+      Feature.todos: const FeatureAccess<Role>(
         read: {Role.editor, Role.admin},
         delete: {Role.admin},
       ),
     },
   );
 
-  expect(registry.allowedOperations(Feature.rss, [Role.editor]), {CrudOperation.read});
-  expect(registry.isAllowed(Feature.rss, CrudOperation.delete, [Role.editor]), isFalse);
+  expect(registry.allowedOperations(Feature.todos, [Role.editor]), {CrudOperation.read});
+  expect(registry.isAllowed(Feature.todos, CrudOperation.delete, [Role.editor]), isFalse);
 });
 ```
 

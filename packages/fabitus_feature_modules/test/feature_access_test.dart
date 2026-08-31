@@ -29,7 +29,7 @@ void main() {
     });
 
     test('one matching role among several is enough', () {
-      expect(access.allows(CrudOperation.delete, const [Role.support, Role.admin]), isTrue);
+      expect(access.allows(CrudOperation.delete, const [Role.viewer, Role.admin]), isTrue);
     });
   });
 
@@ -40,16 +40,16 @@ void main() {
     });
 
     test('is empty for a role that is granted nothing', () {
-      expect(access.operationsFor(const [Role.support]), isEmpty);
+      expect(access.operationsFor(const [Role.viewer]), isEmpty);
     });
   });
 
   group('allowsNavigation', () {
     test('is separate from read access', () {
-      const hidden = FeatureAccess<Role>(read: {Role.support});
+      const hidden = FeatureAccess<Role>(read: {Role.viewer});
 
-      expect(hidden.allows(CrudOperation.read, const [Role.support]), isTrue);
-      expect(hidden.allowsNavigation(const [Role.support]), isFalse);
+      expect(hidden.allows(CrudOperation.read, const [Role.viewer]), isTrue);
+      expect(hidden.allowsNavigation(const [Role.viewer]), isFalse);
     });
   });
 
