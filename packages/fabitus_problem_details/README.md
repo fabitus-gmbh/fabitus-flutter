@@ -130,79 +130,73 @@ class ProblemDetailInterceptor extends Interceptor {
 
 [`fabitus_crud_api`](../fabitus_crud_api) reports failures as a sealed
 `CrudException` carrying a `message` and a list of `CrudViolation`s. It has no
-opinion about the wire format - translating one into the other is exactly what a
+opinion about the wire format - translating one into the other is what a
 `CrudErrorMapper` is for, and that is the seam where this package plugs in.
 
-A problem detail gives you both halves at once: **the general message** and
-**the field errors**.
+**On Dio there is nothing to write.**
+[`fabitus_crud_api_dio`](../fabitus_crud_api_dio) is that mapper, and it uses
+this package underneath:
 
 ```dart
-import 'package:dio/dio.dart';
-import 'package:fabitus_crud_api/fabitus_crud_api.dart';
-import 'package:fabitus_problem_details/fabitus_problem_details.dart';
-
-class DioCrudErrorMapper implements CrudErrorMapper {
-  const DioCrudErrorMapper();
-
-  @override
-  CrudException map(Object error, StackTrace stackTrace) {
-    if (error is! DioException) {
-      return const DefaultCrudErrorMapper().map(error, stackTrace);
-    }
-
-    final response = error.response;
-    if (response != null) {
-      final problem = ProblemDetail.tryParse(response.data);
-      return CrudException.fromStatusCode(
-        response.statusCode ?? 0,
-        // The general error message, straight from the backend.
-        message: problem?.message,
-        // The field errors, converted into the CRUD model.
-        violations: problem.toCrudViolations(),
-        cause: error,
-      );
-    }
-
-    return switch (error.type) {
-      DioExceptionType.connectionTimeout ||
-      DioExceptionType.sendTimeout ||
-      DioExceptionType.receiveTimeout =>
-        CrudTimeoutException(error.message ?? 'Timeout', cause: error),
-      DioExceptionType.cancel =>
-        CrudCancelledException('Request cancelled', cause: error),
-      _ => CrudNetworkException(error.message ?? 'Network error', cause: error),
-    };
-  }
-}
-
-/// The whole bridge between the two packages.
-extension ProblemDetailCrudViolations on ProblemDetail? {
-  List<CrudViolation> toCrudViolations() => [
-    for (final violation in this?.violations ?? const <ConstraintViolation>[])
-      CrudViolation(field: violation.field, message: violation.message),
-  ];
-}
+final repository = RemotePagingCrudRepository<Todo, String>(
+  TodoApi(dio),
+  errorMapper: const DioCrudErrorMapper(),
+);
 ```
 
-`CrudException.fromStatusCode` picks the right subtype from the status, so a 422
-carrying violations arrives as a `CrudValidationException`. On the screen:
+A problem detail gives the mapper both halves at once - **the general message**
+and **the field errors** - so on the screen:
 
 ```dart
 final result = await repository.save(todo);
 if (result case CrudFailure(:final error)) {
-  setState(() => _error = error);
+  Text(error.message);                                  // the general message
+  TextFormField(
+    decoration: InputDecoration(
+      errorText: error.violationFor('title')?.message,   // the field error
+    ),
+  );
 }
-
-// The general message.
-Text(_error?.message ?? '');
-
-// And the field errors, without anyone below this line knowing about RFC 9457.
-TextFormField(
-  decoration: InputDecoration(errorText: _error?.violationFor('title')?.message),
-);
 ```
 
-Keep the extension in one file in your app and every repository is covered.
+Nothing below the mapper knows that RFC 9457 exists.
+
+### With another HTTP client
+
+Write the mapper yourself; the conversion is four lines, and
+`fabitus_crud_api_dio` exports it as `toCrudViolations()` if you would rather
+depend on that:
+
+```dart
+import 'package:fabitus_crud_api/fabitus_crud_api.dart';
+import 'package:fabitus_problem_details/fabitus_problem_details.dart';
+
+class MyCrudErrorMapper implements CrudErrorMapper {
+  const MyCrudErrorMapper();
+
+  @override
+  CrudException map(Object error, StackTrace stackTrace) {
+    if (error is! MyHttpException) {
+      return const DefaultCrudErrorMapper().map(error, stackTrace);
+    }
+    final problem = ProblemDetail.tryParse(error.body);
+    return CrudException.fromStatusCode(
+      error.statusCode,
+      // The general error message, straight from the backend.
+      message: problem?.message,
+      // The field errors, converted into the CRUD model.
+      violations: [
+        for (final violation in problem?.violations ?? const <ConstraintViolation>[])
+          CrudViolation(field: violation.field, message: violation.message),
+      ],
+      cause: error,
+    );
+  }
+}
+```
+
+`CrudException.fromStatusCode` picks the right subtype from the status, so a 422
+carrying violations arrives as a `CrudValidationException`.
 
 ## Guide 3: emitting a problem detail
 

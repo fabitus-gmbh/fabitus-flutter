@@ -287,7 +287,8 @@ abstract class TodoApi extends PagingCrudApi<Todo, String> {
 `PageRequest.toJson()` emits `page`, `size` and `sort`, and `Page.fromJson`
 reads the Spring Data response shape, so both directions work out of the box.
 
-Wrap the client in a repository:
+Wrap the client in a repository, with the error mapper from
+[`fabitus_crud_api_dio`](../fabitus_crud_api_dio):
 
 ```dart
 final repository = RemotePagingCrudRepository<Todo, String>(
@@ -296,67 +297,64 @@ final repository = RemotePagingCrudRepository<Todo, String>(
 );
 ```
 
-### The Dio error mapper
+### The error mapper
 
-The package has no `dio` dependency, so this ~25 line class lives in your app.
-Write it once and reuse it for every repository:
+`fabitus_crud_api` has no transport dependency, so translating what your HTTP
+client throws into a `CrudException` is the one thing left to wire up.
+
+**On Dio, do not write it.** [`fabitus_crud_api_dio`](../fabitus_crud_api_dio)
+ships it:
+
+```yaml
+dependencies:
+  fabitus_crud_api_dio:
+    git:
+      url: https://github.com/fabitus-gmbh/fabitus-flutter.git
+      path: packages/fabitus_crud_api_dio
+```
 
 ```dart
-class DioCrudErrorMapper implements CrudErrorMapper {
-  const DioCrudErrorMapper();
+final repository = RemotePagingCrudRepository<Todo, String>(
+  TodoApi(dio),
+  errorMapper: const DioCrudErrorMapper(),
+);
+```
+
+It maps status codes to the matching exception, fills the message and the field
+errors from an RFC 9457 body, and turns timeouts, cancellations and connection
+failures into their own types. Its README has
+[the full table](../fabitus_crud_api_dio#what-it-maps).
+
+**On another client**, implement `CrudErrorMapper` yourself. The shape, for a
+backend that speaks RFC 9457 - which
+[`fabitus_problem_details`](../fabitus_problem_details) reads:
+
+```dart
+class MyCrudErrorMapper implements CrudErrorMapper {
+  const MyCrudErrorMapper();
 
   @override
   CrudException map(Object error, StackTrace stackTrace) {
-    if (error is! DioException) {
+    if (error is! MyHttpException) {
       return const DefaultCrudErrorMapper().map(error, stackTrace);
     }
-    final response = error.response;
-    if (response != null) {
-      return CrudException.fromStatusCode(
-        response.statusCode ?? 0,
-        message: _messageFrom(response.data),
-        violations: _violationsFrom(response.data),
-        cause: error,
-      );
-    }
-    return switch (error.type) {
-      DioExceptionType.connectionTimeout ||
-      DioExceptionType.sendTimeout ||
-      DioExceptionType.receiveTimeout =>
-        CrudTimeoutException(error.message ?? 'Timeout', cause: error),
-      DioExceptionType.cancel =>
-        CrudCancelledException('Request cancelled', cause: error),
-      _ => CrudNetworkException(error.message ?? 'Network error', cause: error),
-    };
+    final problem = ProblemDetail.tryParse(error.body);
+    return CrudException.fromStatusCode(
+      error.statusCode,
+      message: problem?.message,
+      violations: [
+        for (final violation in problem?.violations ?? const <ConstraintViolation>[])
+          CrudViolation(field: violation.field, message: violation.message),
+      ],
+      cause: error,
+    );
   }
 }
 ```
 
 `CrudException.fromStatusCode` turns 404 into `CrudNotFoundException`, 422 into
-`CrudValidationException`, 5xx into `CrudServerException`, and so on.
-
-`_messageFrom` and `_violationsFrom` are where your backend's error format is
-decoded. If it speaks [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) - which
-Spring Boot does by default - the sibling package
-[`fabitus_problem_details`](../fabitus_problem_details) already does it:
-
-```dart
-final problem = ProblemDetail.tryParse(response.data);
-
-return CrudException.fromStatusCode(
-  response.statusCode ?? 0,
-  message: problem?.message,
-  violations: [
-    for (final violation in problem?.violations ?? const <ConstraintViolation>[])
-      CrudViolation(field: violation.field, message: violation.message),
-  ],
-  cause: error,
-);
-```
-
-That package's README has the [full mapper](../fabitus_problem_details#guide-2-with-fabitus_crud_api).
-This one stays free of any wire format on purpose, so a gRPC or GraphQL backend
-can plug in its own.
+`CrudValidationException`, 5xx into `CrudServerException`, and so on. Everything
+below the mapper - repositories, blocs, screens - stays free of the wire format.
 
 > `RemoteCrudRepository.findAll()` and `count()` fail with
 > `CrudUnsupportedException`, because a plain `CrudApi` has no collection
@@ -455,9 +453,9 @@ TextFormField(
 
 `CrudViolation` is a plain `field` plus `message`, with no wire format attached:
 a backend rejecting a `POST` produces them, and so does a local repository that
-validates before it stores. Filling them from an RFC 9457 body is six lines in
-your `CrudErrorMapper` - see
-[`fabitus_problem_details`](../fabitus_problem_details#guide-2-with-fabitus_crud_api).
+validates before it stores. On Dio,
+[`fabitus_crud_api_dio`](../fabitus_crud_api_dio) fills them from an RFC 9457
+body for you; on another client it is six lines in your own `CrudErrorMapper`.
 
 A violation prints as `title: must not be blank`, so the whole list joins
 straight into a message: `error.violations.join('\n')`.
@@ -703,8 +701,9 @@ freezed for equality and `copyWith` only, with
 not: it is transport knowledge. `CrudException` says what went wrong and which
 fields were rejected; how a particular backend spells that on the wire belongs
 in a `CrudErrorMapper`. RFC 9457 is covered by
-[`fabitus_problem_details`](../fabitus_problem_details), which this package does
-not depend on.
+[`fabitus_problem_details`](../fabitus_problem_details) and, together with Dio,
+by [`fabitus_crud_api_dio`](../fabitus_crud_api_dio) - neither of which this
+package depends on.
 
 **Why no `dio` dependency?** The transport is the one thing every project picks
 differently. Keeping it out means this package works with `dio`, `http`, a
