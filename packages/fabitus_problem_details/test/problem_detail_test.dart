@@ -1,4 +1,4 @@
-import 'package:fabitus_crud_api/fabitus_crud_api.dart';
+import 'package:fabitus_problem_details/fabitus_problem_details.dart';
 import 'package:test/test.dart';
 
 void main() {

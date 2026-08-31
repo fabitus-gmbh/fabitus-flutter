@@ -3,7 +3,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'problem_detail.freezed.dart';
 
-/// A single field level validation error.
+/// A single field level validation error carried by a [ProblemDetail].
 ///
 /// [toString] is the compact `field: message` form, so a list of violations can
 /// be joined straight into a message.

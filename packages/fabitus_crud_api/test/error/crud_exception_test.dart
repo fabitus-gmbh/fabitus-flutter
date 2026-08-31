@@ -15,38 +15,47 @@ void main() {
       expect(CrudException.fromStatusCode(418), isA<CrudUnknownException>());
     });
 
-    test('prefers the explicit message over the problem detail', () {
-      final exception = CrudException.fromStatusCode(
-        404,
-        message: 'explicit',
-        problem: const ProblemDetail(detail: 'from problem'),
-      );
-
-      expect(exception.message, 'explicit');
-    });
-
-    test('falls back to the problem detail, then to the status', () {
-      expect(
-        CrudException.fromStatusCode(404, problem: const ProblemDetail(detail: 'from problem')).message,
-        'from problem',
-      );
+    test('uses the message it is given, or falls back to the status', () {
+      expect(CrudException.fromStatusCode(404, message: 'explicit').message, 'explicit');
       expect(CrudException.fromStatusCode(404).message, 'HTTP 404');
     });
 
-    test('exposes the violations of a validation problem', () {
+    test('carries the violations it is given', () {
       final exception = CrudException.fromStatusCode(
         422,
-        problem: const ProblemDetail(
-          violations: [ConstraintViolation(field: 'title', message: 'blank')],
-        ),
+        violations: const [CrudViolation(field: 'title', message: 'blank')],
       );
 
+      expect(exception, isA<CrudValidationException>());
       expect(exception.violations.single.field, 'title');
     });
   });
 
   test('violations default to empty', () {
     expect(const CrudNetworkException('offline').violations, isEmpty);
+    expect(const CrudNetworkException('offline').violationFor('title'), isNull);
+  });
+
+  test('violationFor finds the violation of a field', () {
+    const exception = CrudValidationException(
+      'invalid',
+      violations: [
+        CrudViolation(field: 'title', message: 'must not be blank'),
+        CrudViolation(field: 'due', message: 'must be in the future'),
+      ],
+    );
+
+    expect(exception.violationFor('due')?.message, 'must be in the future');
+    expect(exception.violationFor('other'), isNull);
+  });
+
+  test('a violation reads as "field: message"', () {
+    const violations = [
+      CrudViolation(field: 'title', message: 'must not be blank'),
+      CrudViolation(field: 'due', message: 'must be in the future'),
+    ];
+
+    expect(violations.join('\n'), 'title: must not be blank\ndue: must be in the future');
   });
 
   test('toString names the type and the status', () {

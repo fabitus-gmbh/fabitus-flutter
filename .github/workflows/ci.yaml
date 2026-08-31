@@ -26,8 +26,14 @@ jobs:
       # Generated code is committed so consumers need no build step. Regenerate
       # it here and fail if the committed output has drifted.
       - name: Regenerate code
-        run: dart run build_runner build
-        working-directory: packages/fabitus_crud_api
+        run: |
+          for pkg in packages/*/; do
+            if grep -q '^  build_runner:' "$pkg/pubspec.yaml"; then
+              echo "::group::build_runner in $pkg"
+              (cd "$pkg" && dart run build_runner build)
+              echo "::endgroup::"
+            fi
+          done
 
       - name: Verify committed generated code is up to date
         run: |
@@ -44,5 +50,9 @@ jobs:
         run: dart analyze --fatal-infos
 
       - name: Run tests
-        run: dart test
-        working-directory: packages/fabitus_crud_api
+        run: |
+          for pkg in packages/*/; do
+            echo "::group::dart test in $pkg"
+            (cd "$pkg" && dart test)
+            echo "::endgroup::"
+          done

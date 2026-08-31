@@ -9,7 +9,8 @@ import 'crud_result.dart';
 ///
 /// Every repository takes a mapper, which is where knowledge about the
 /// transport lives. The package itself has no HTTP dependency; supply a mapper
-/// for your client. A Dio mapper is roughly:
+/// for your client. A Dio mapper, using `package:fabitus_problem_details` to
+/// read the RFC 9457 body, is roughly:
 ///
 /// ```dart
 /// class DioCrudErrorMapper implements CrudErrorMapper {
@@ -22,9 +23,14 @@ import 'crud_result.dart';
 ///     }
 ///     final response = error.response;
 ///     if (response != null) {
+///       final problem = ProblemDetail.tryParse(response.data);
 ///       return CrudException.fromStatusCode(
 ///         response.statusCode ?? 0,
-///         problem: ProblemDetail.tryParse(response.data),
+///         message: problem?.message,
+///         violations: [
+///           for (final violation in problem?.violations ?? const <ConstraintViolation>[])
+///             CrudViolation(field: violation.field, message: violation.message),
+///         ],
 ///         cause: error,
 ///       );
 ///     }

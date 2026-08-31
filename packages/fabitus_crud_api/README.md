@@ -61,8 +61,8 @@ If you know Spring Data, you know the vocabulary:
 | `Pageable` | `PageRequest` | `OffsetPageRequest` or `CursorPageRequest` |
 | `Page<T>` | `Page<T>` | `OffsetPage<T>` or `CursorPage<T>` |
 | `Sort` | `Sort` | `Sort.by('createdAt', SortDirection.desc)` |
-| `ProblemDetail` | `ProblemDetail` | RFC 9457, incl. constraint violations |
 | exceptions | `CrudResult<T>` | `CrudSuccess` or `CrudFailure`, never thrown |
+| `ConstraintViolation` | `CrudViolation` | field level errors, transport agnostic |
 
 One layer sits below the repository: `CrudApi<T, ID>` is the raw HTTP client
 contract that a retrofit client implements. `RemoteCrudRepository` wraps it and
@@ -314,7 +314,8 @@ class DioCrudErrorMapper implements CrudErrorMapper {
     if (response != null) {
       return CrudException.fromStatusCode(
         response.statusCode ?? 0,
-        problem: ProblemDetail.tryParse(response.data),
+        message: _messageFrom(response.data),
+        violations: _violationsFrom(response.data),
         cause: error,
       );
     }
@@ -333,6 +334,29 @@ class DioCrudErrorMapper implements CrudErrorMapper {
 
 `CrudException.fromStatusCode` turns 404 into `CrudNotFoundException`, 422 into
 `CrudValidationException`, 5xx into `CrudServerException`, and so on.
+
+`_messageFrom` and `_violationsFrom` are where your backend's error format is
+decoded. If it speaks [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) - which
+Spring Boot does by default - the sibling package
+[`fabitus_problem_details`](../fabitus_problem_details) already does it:
+
+```dart
+final problem = ProblemDetail.tryParse(response.data);
+
+return CrudException.fromStatusCode(
+  response.statusCode ?? 0,
+  message: problem?.message,
+  violations: [
+    for (final violation in problem?.violations ?? const <ConstraintViolation>[])
+      CrudViolation(field: violation.field, message: violation.message),
+  ],
+  cause: error,
+);
+```
+
+That package's README has the [full mapper](../fabitus_problem_details#guide-2-with-fabitus_crud_api).
+This one stays free of any wire format on purpose, so a gRPC or GraphQL backend
+can plug in its own.
 
 > `RemoteCrudRepository.findAll()` and `count()` fail with
 > `CrudUnsupportedException`, because a plain `CrudApi` has no collection
@@ -415,28 +439,28 @@ String messageFor(CrudException error) => switch (error) {
 };
 ```
 
-Field level errors from an RFC 9457 body are on every exception:
+Field level errors are on every exception as `CrudViolation`s:
 
 ```dart
 final result = await repository.save(todo);
 if (result case CrudFailure(:final error)) {
-  setState(() => _violations = error.violations);
+  setState(() => _error = error);
 }
 
 // In the form field:
 TextFormField(
-  decoration: InputDecoration(
-    errorText: _violations
-        .where((violation) => violation.field == 'title')
-        .map((violation) => violation.message)
-        .firstOrNull,
-  ),
+  decoration: InputDecoration(errorText: _error?.violationFor('title')?.message),
 );
 ```
 
-Backends disagree on the wire format, so `ProblemDetail` accepts `violations`
-and `errors`, and reads a field name from `field`, `propertyPath` or `name`.
-Anything it does not know is kept in `extensions`, so a `traceId` survives.
+`CrudViolation` is a plain `field` plus `message`, with no wire format attached:
+a backend rejecting a `POST` produces them, and so does a local repository that
+validates before it stores. Filling them from an RFC 9457 body is six lines in
+your `CrudErrorMapper` - see
+[`fabitus_problem_details`](../fabitus_problem_details#guide-2-with-fabitus_crud_api).
+
+A violation prints as `title: must not be blank`, so the whole list joins
+straight into a message: `error.violations.join('\n')`.
 
 ## Guide 6: services, events and dependency injection
 
@@ -645,7 +669,7 @@ dart test
 | `EntityCodec<T>` | `fromJson`/`toJson` pair for local stores |
 | `CrudResult<T>` | `CrudSuccess<T>` or `CrudFailure<T>` |
 | `CrudException` | sealed error hierarchy, `CrudException.fromStatusCode` |
-| `ProblemDetail`, `ConstraintViolation` | RFC 9457 error bodies |
+| `CrudViolation` | a field level validation error, transport agnostic |
 | `CrudErrorMapper`, `DefaultCrudErrorMapper`, `guardCrud` | turning throws into results |
 | `Sort`, `SortOrder`, `SortDirection` | ordering |
 | `PageRequest` → `OffsetPageRequest`, `CursorPageRequest` | what to read |
@@ -670,10 +694,17 @@ means a caller cannot forget it, and `sealed` turns "did you handle the error?"
 into a compile time question.
 
 **Why is `fromJson` hand written?** The parsing is deliberately tolerant:
-`ProblemDetail` reads violations from `violations` or `errors`, `Page` accepts
-`content`, `items` or `data` and picks its variant from the keys that are
-present. `json_serializable` cannot express that, so these types use freezed for
-equality and `copyWith` only, with `@Freezed(fromJson: false, toJson: false)`.
+`Page` accepts `content`, `items` or `data` and picks its variant from the keys
+that are present. `json_serializable` cannot express that, so these types use
+freezed for equality and `copyWith` only, with
+`@Freezed(fromJson: false, toJson: false)`.
+
+**Why is the error *format* not in this package?** For the same reason `dio` is
+not: it is transport knowledge. `CrudException` says what went wrong and which
+fields were rejected; how a particular backend spells that on the wire belongs
+in a `CrudErrorMapper`. RFC 9457 is covered by
+[`fabitus_problem_details`](../fabitus_problem_details), which this package does
+not depend on.
 
 **Why no `dio` dependency?** The transport is the one thing every project picks
 differently. Keeping it out means this package works with `dio`, `http`, a
@@ -681,7 +712,7 @@ generated OpenAPI client or a websocket, and it keeps the dependency
 footprint at `collection`, `logging` and `meta`.
 
 **Why freezed, and why is the generated code committed?** The value types -
-`Sort`, `PageRequest`, `Page`, `ProblemDetail`, `CrudEvent` - are `freezed`
+`Sort`, `PageRequest`, `Page`, `CrudViolation`, `CrudEvent` - are `freezed`
 classes, which is where `copyWith` and value equality come from. Committing the
 `.freezed.dart` files means a consumer needs no build step: the package is used
 through a git dependency, and pub serves whatever is in the repository. CI

@@ -9,6 +9,7 @@ dependency resolution and one `pubspec.lock` at the repo root.
 | Package | Description |
 | --- | --- |
 | [`fabitus_crud_api`](packages/fabitus_crud_api) | Spring Data style CRUD repositories, pagination and error handling, with in-memory, key-value and remote implementations. |
+| [`fabitus_problem_details`](packages/fabitus_problem_details) | RFC 9457 problem details for HTTP APIs, with tolerant parsing. |
 
 ## Layout
 
@@ -19,15 +20,21 @@ dependency resolution and one `pubspec.lock` at the repo root.
 ├── pubspec.lock               # the single lock file for the whole workspace
 ├── .github/workflows/ci.yaml  # format + analyze + test
 └── packages/
-    └── fabitus_crud_api/
-        ├── analysis_options.yaml
-        ├── pubspec.yaml       # resolution: workspace
-        ├── lib/
-        │   ├── fabitus_crud_api.dart   # public entry point (barrel)
-        │   └── src/                    # implementation, not for direct import
-        ├── test/
-        └── example/
+    ├── fabitus_crud_api/
+    │   ├── analysis_options.yaml
+    │   ├── pubspec.yaml       # resolution: workspace
+    │   ├── lib/
+    │   │   ├── fabitus_crud_api.dart   # public entry point (barrel)
+    │   │   └── src/                    # implementation, not for direct import
+    │   ├── test/
+    │   └── example/
+    └── fabitus_problem_details/
+        └── ...                # same shape
 ```
+
+The packages do not depend on each other. `fabitus_crud_api` has no opinion
+about a backend's error format; `fabitus_problem_details` implements one, and
+either README shows the few lines that bridge them.
 
 ## Getting started
 

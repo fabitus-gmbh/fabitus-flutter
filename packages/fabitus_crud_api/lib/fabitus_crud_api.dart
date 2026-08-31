@@ -15,7 +15,7 @@ export 'src/core/logging.dart';
 export 'src/error/crud_error_mapper.dart';
 export 'src/error/crud_exception.dart';
 export 'src/error/crud_result.dart';
-export 'src/error/problem_detail.dart';
+export 'src/error/crud_violation.dart';
 export 'src/paging/page.dart';
 export 'src/paging/page_request.dart';
 export 'src/paging/sort.dart';
