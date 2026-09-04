@@ -1,11 +1,12 @@
 // A runnable tour of fabitus_feature_modules: declare the features of a small
-// todo app, group them the way a side navigation would, load the access rights a
-// backend sent, and ask what four different users may do.
+// todo app, let each one register its own dependencies, group them the way a
+// side navigation would, load the access rights a backend sent, and ask what
+// four different users may do.
 //
 //   dart run example/main.dart
 import 'package:fabitus_feature_modules/fabitus_feature_modules.dart';
 
-void main() {
+Future<void> main() async {
   // 1. What the backend returned. It knows nothing about labels yet.
   final access = parseFeatureAccess<Feature, Role>(
     const [
@@ -38,10 +39,15 @@ void main() {
     access: access,
   );
 
-  // 3. The router asks for every route, once.
+  // 3. Every feature wires itself up, in module order. In a real app the
+  //    locator is get_it and this is `getIt.registerLazySingleton(...)`.
+  await registry.registerDependencies();
+  print('registered: ${locator.registrations.join(', ')}');
+
+  // 4. The router asks for every route, once.
   print('routes: ${registry.routes.join(', ')}');
 
-  // 4. Every user gets their own navigation and their own permissions. The
+  // 5. Every user gets their own navigation and their own permissions. The
   //    grouped view is what a side navigation renders; a section nobody may see
   //    anything in is left out, heading and all.
   for (final (name, roles) in const [
@@ -68,13 +74,30 @@ void main() {
     }
   }
 
-  // 5. Labels have no config from the backend, so the module's own fallback
+  // 6. Labels have no config from the backend, so the module's own fallback
   //    applies - and it disappears the day the backend starts sending one.
   print(
     '\nlabel rights come from the module: '
     '${registry.accessFor(Feature.labels) == const LabelModule().fallbackAccess}',
   );
 }
+
+/// Stands in for get_it, to show the hook needs no particular container.
+class Locator {
+  final Map<String, Object Function()> _factories = {};
+
+  /// What was registered, in order.
+  final List<String> registrations = [];
+
+  void register(String name, Object Function() create) {
+    _factories[name] = create;
+    registrations.add(name);
+  }
+
+  T get<T extends Object>(String name) => _factories[name]!() as T;
+}
+
+final Locator locator = Locator();
 
 enum Feature {
   todos,
@@ -126,6 +149,12 @@ class TodoModule extends AppModule {
 
   @override
   Object? get group => NavGroup.data;
+
+  @override
+  Future<void> registerDependencies() async {
+    locator.register('TodoApi', () => 'a TodoApi');
+    locator.register('TodoRepository', () => 'a TodoRepository over ${locator.get<String>('TodoApi')}');
+  }
 }
 
 class InvoiceModule extends AppModule {
@@ -142,6 +171,10 @@ class InvoiceModule extends AppModule {
 
   @override
   Object? get group => NavGroup.data;
+
+  /// Runs after TodoModule, so it may rely on what that one registered.
+  @override
+  Future<void> registerDependencies() async => locator.register('InvoiceRepository', () => 'an InvoiceRepository');
 }
 
 /// Under a different heading, and only for admins - so the whole section

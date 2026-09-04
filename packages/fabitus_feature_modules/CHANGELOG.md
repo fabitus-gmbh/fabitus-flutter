@@ -11,6 +11,12 @@ Initial release.
   navigation entry, as a `freezed` value type. Denies by default.
 - `parseFeatureAccess`, reading a backend's configuration from a list or a map,
   skipping features and roles this build does not know.
+- `FeatureModule.registerDependencies`, so a feature owns its wiring beside its
+  routes and its navigation, and `FeatureRegistry.registerDependencies` to run
+  them all at startup - sequentially, in module order, async, with failures
+  propagating. It takes no container argument: the service locator is the app's,
+  and a facade over `get_it` would be too small to express async singletons,
+  scopes or disposal.
 - `FeatureGroup`, gathering features under a heading, with
   `FeatureRegistry.navigationSectionsFor` returning the menu already filtered:
   a section appears where its first visible module appears, and a section the

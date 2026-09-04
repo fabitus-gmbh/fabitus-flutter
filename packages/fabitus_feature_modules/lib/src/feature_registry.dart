@@ -21,6 +21,7 @@ import 'feature_module.dart';
 ///   ),
 /// );
 ///
+/// await registry.registerDependencies();     // each feature wires its own
 /// GoRouter(routes: registry.routes);
 /// registry.navigationFor(user.roles);          // flat, for a bar or a rail
 /// registry.navigationSectionsFor(user.roles);  // grouped, for a side menu
@@ -102,6 +103,30 @@ class FeatureRegistry<F extends Object, R extends Object, TRoute, TNav> {
   /// An empty, all-denying [FeatureAccess] for a feature no module claims, so an
   /// unknown feature is refused rather than waved through.
   FeatureAccess<R> accessFor(F feature) => _access[feature] ?? FeatureAccess<R>();
+
+  /// Lets every module register what it needs in the app's service locator.
+  ///
+  /// Sequential and in module order, so a module may rely on the ones declared
+  /// before it. Whatever a module throws propagates: a misconfigured app should
+  /// fail here, at startup, not on the screen that needed the missing service.
+  ///
+  /// Call it once, after the core services the modules depend on are in place:
+  ///
+  /// ```dart
+  /// await registerCoreServices();          // Dio, the event bus, ...
+  /// final registry = AppRegistry(modules: ..., groups: ..., access: ...);
+  /// await registry.registerDependencies();
+  /// runApp(App(registry: registry));
+  /// ```
+  ///
+  /// Separate from the constructor because registration can be async and a
+  /// constructor cannot await - and because a test that only asks about
+  /// permissions should not have to wire anything up.
+  Future<void> registerDependencies() async {
+    for (final module in modules) {
+      await module.registerDependencies();
+    }
+  }
 
   /// Every route of every module, in module order.
   ///

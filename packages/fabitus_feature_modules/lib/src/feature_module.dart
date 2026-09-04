@@ -78,6 +78,42 @@ abstract class FeatureModule<F extends Object, R extends Object, TRoute, TNav> {
   /// ```
   Object? get group => null;
 
+  /// Registers what this feature needs in the app's service locator.
+  ///
+  /// This is the third thing a feature owns, beside its routes and its
+  /// navigation: its wiring. Declaring it here means adding a feature is adding
+  /// one entry to the module list, and deleting one is deleting one file -
+  /// rather than both plus an edit to a central `injection_container.dart` that
+  /// nobody notices is now wrong.
+  ///
+  /// It takes no container argument on purpose. The locator is the app's - and
+  /// with `get_it`, `GetIt.instance` is already how a module reaches it:
+  ///
+  /// ```dart
+  /// @override
+  /// Future<void> registerDependencies() async {
+  ///   getIt
+  ///     ..registerLazySingleton<TodoApi>(() => TodoApi(getIt()))
+  ///     ..registerLazySingleton<PagingCrudRepository<Todo, String>>(
+  ///       () => RemotePagingCrudRepository(
+  ///         getIt<TodoApi>(),
+  ///         errorMapper: const DioCrudErrorMapper(),
+  ///       ),
+  ///     );
+  /// }
+  /// ```
+  ///
+  /// A package level facade over `get_it` was the alternative, and it would have
+  /// been the wrong one: too small to express async singletons, scopes, named
+  /// instances or disposal, so every real app would have had to reach past it.
+  ///
+  /// Called by [FeatureRegistry.registerDependencies], sequentially and in
+  /// module order, so a module may rely on the ones declared before it. Async,
+  /// because some registrations are - and anything it throws propagates, so a
+  /// misconfigured app fails at startup rather than on the screen that needed
+  /// the missing service.
+  Future<void> registerDependencies() async {}
+
   /// The access rights to use while the backend sends none for this feature.
   ///
   /// A module that ships before the server knows about it would otherwise be

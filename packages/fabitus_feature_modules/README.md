@@ -9,7 +9,8 @@ final registry = AppRegistry(
   access: parseFeatureAccess(await api.accessRights(), ...),
 );
 
-GoRouter(routes: registry.routes);                    // the router
+await registry.registerDependencies();                 // each feature wires itself
+GoRouter(routes: registry.routes);                     // the router
 registry.navigationFor(user.roles);                    // a bar, a rail, tabs
 registry.navigationSectionsFor(user.roles);            // a grouped side menu
 registry.isAllowed(Feature.todos, CrudOperation.delete, user.roles);
@@ -34,10 +35,11 @@ registry.isAllowed(Feature.todos, CrudOperation.delete, user.roles);
 - [Guide 2: loading access rights from a backend](#guide-2-loading-access-rights-from-a-backend)
 - [Guide 3: building the registry](#guide-3-building-the-registry)
 - [Guide 4: with go_router](#guide-4-with-go_router)
-- [Guide 5: grouping the navigation](#guide-5-grouping-the-navigation)
-- [Guide 6: gating the UI](#guide-6-gating-the-ui)
-- [Guide 7: a feature the backend does not know yet](#guide-7-a-feature-the-backend-does-not-know-yet)
-- [Guide 8: testing](#guide-8-testing)
+- [Guide 5: each feature registers its own dependencies](#guide-5-each-feature-registers-its-own-dependencies)
+- [Guide 6: grouping the navigation](#guide-6-grouping-the-navigation)
+- [Guide 7: gating the UI](#guide-7-gating-the-ui)
+- [Guide 8: a feature the backend does not know yet](#guide-8-a-feature-the-backend-does-not-know-yet)
+- [Guide 9: testing](#guide-9-testing)
 - [Design notes](#design-notes)
 
 ## Installation
@@ -61,7 +63,7 @@ need `build_runner` - the generated code ships with the package.
 
 | Type | Holds |
 | --- | --- |
-| `FeatureModule` | one feature: its id, its routes, its navigation entry, its group |
+| `FeatureModule` | one feature: its id, its routes, its navigation entry, its group, its wiring |
 | `FeatureAccess` | which roles are granted which `CrudOperation`, and the navigation |
 | `FeatureGroup` | a heading several features appear under |
 | `FeatureRegistry` | every module and group plus the access rights that arrived |
@@ -116,7 +118,7 @@ class TodoModule extends AppModule {
 link. Whether the entry is *shown* is not decided here; the registry filters by
 the roles of the user actually looking at it. And nothing says *where* it is
 shown: `TNav` is whatever your navigation is made of, top bar or side rail
-alike - see [Guide 5](#guide-5-grouping-the-navigation).
+alike - see [Guide 6](#guide-6-grouping-the-navigation).
 
 Because `Feature` is an enum, a `switch` over it stays exhaustive, so adding a
 feature makes the compiler point at every place that has to handle it.
@@ -176,17 +178,14 @@ Access is resolved once, at construction, in this order:
 Build a new registry when the configuration is reloaded; two modules claiming the
 same feature id throw an `ArgumentError` rather than one silently winning.
 
-Register it wherever your app keeps singletons:
+Then let every module wire itself up, and register the registry wherever your app
+keeps its singletons - see
+[Guide 5](#guide-5-each-feature-registers-its-own-dependencies) for the whole
+startup sequence:
 
 ```dart
-getIt.registerSingletonAsync<AppRegistry>(() async => AppRegistry(
-  modules: const [TodoModule(), LabelModule(), MemberModule()],
-  access: parseFeatureAccess(
-    await getIt<UserApi>().accessRights(),
-    featureFromJson: Feature.tryParse,
-    roleFromJson: Role.tryParse,
-  ),
-));
+await registry.registerDependencies();
+getIt.registerSingleton<AppRegistry>(registry);
 ```
 
 ## Guide 4: with `go_router`
@@ -230,7 +229,89 @@ For another router, change one type parameter. With `auto_route` it is
 `AutoRoute`; with a hand rolled `Navigator` map it can be `String` and the app
 looks the widget up itself.
 
-## Guide 5: grouping the navigation
+## Guide 5: each feature registers its own dependencies
+
+A feature's wiring is the third thing it owns, beside its routes and its
+navigation. Declaring it in the module means adding a feature is adding one entry
+to the module list, and deleting one is deleting one file - instead of both, plus
+an edit to a central `injection_container.dart` that nobody notices is now wrong.
+
+```dart
+class TodoModule extends AppModule {
+  const TodoModule();
+
+  @override
+  Future<void> registerDependencies() async {
+    getIt
+      ..registerLazySingleton<TodoApi>(() => TodoApi(getIt()))
+      ..registerLazySingleton<PagingCrudRepository<Todo, String>>(
+        () => RemotePagingCrudRepository(
+          getIt<TodoApi>(),
+          errorMapper: const DioCrudErrorMapper(),
+        ),
+      )
+      ..registerLazySingleton<PagingCrudService<Todo, String>>(
+        () => PagingCrudService(
+          getIt(),
+          listeners: [CrudEventListener.fromCallback(getIt<EventBus>().fire)],
+        ),
+        dispose: (service) => service.dispose(),
+      );
+  }
+
+  // ... id, routes, navigation, group
+}
+```
+
+The registry runs them all, once, at startup:
+
+```dart
+Future<void> bootstrap() async {
+  // 1. The core services the features build on.
+  getIt
+    ..registerLazySingleton<Dio>(buildDio)
+    ..registerLazySingleton<EventBus>(EventBus.new);
+
+  // 2. The registry, with the access rights the backend sent.
+  final registry = AppRegistry(
+    modules: const [TodoModule(), InvoiceModule(), MemberModule()],
+    groups: appNavGroups,
+    access: parseFeatureAccess(
+      await getIt<UserApi>().accessRights(),
+      featureFromJson: Feature.tryParse,
+      roleFromJson: Role.tryParse,
+    ),
+  );
+
+  // 3. Every feature wires itself.
+  await registry.registerDependencies();
+
+  getIt.registerSingleton<AppRegistry>(registry);
+  runApp(App(registry: registry));
+}
+```
+
+Three things worth knowing:
+
+- **Sequential, in module order.** A module may rely on what the ones before it
+  registered. Order the `modules` list accordingly - it is the same list that
+  orders the navigation.
+- **Async.** Some registrations are (`registerSingletonAsync`, a database that
+  has to open), so the hook is `Future<void>`.
+- **Failures propagate.** Whatever a module throws comes out of
+  `registerDependencies`, so a misconfigured app fails at startup instead of on
+  the screen that needed the missing service.
+
+### Why it takes no container argument
+
+Because the locator is the app's, and `GetIt.instance` is already how a module
+reaches it. A facade over `get_it` in this package was the alternative, and it
+would have been the wrong one: too small to express async singletons, scopes,
+named instances or disposal, so every real app would end up reaching past it.
+Nothing here depends on `get_it` - a module that uses `riverpod`, `injectable` or
+a plain global works exactly the same way.
+
+## Guide 6: grouping the navigation
 
 A side navigation is usually sections, not a flat list:
 
@@ -312,7 +393,7 @@ NavigationBar(
 `isGroupVisible(NavGroup.data, roles)` and `featuresInGroup(NavGroup.data)`
 answer the two questions a menu sometimes asks directly.
 
-## Guide 6: gating the UI
+## Guide 7: gating the UI
 
 The navigation, filtered for the user looking at it - here as a rail, but the
 package does not care:
@@ -355,7 +436,7 @@ if (registry.isAllowed(Feature.todos, CrudOperation.delete, user.roles)) {
 }
 ```
 
-## Guide 7: a feature the backend does not know yet
+## Guide 8: a feature the backend does not know yet
 
 A module that ships before the server has a configuration for it would otherwise
 be locked for everyone. Say what it should grant in the meantime:
@@ -390,7 +471,7 @@ feature. Nothing else changes, and no lookup anywhere needs a special case.
 Leave `fallbackAccess` out and an unconfigured feature is denied, which is the
 right default for one you have not thought about.
 
-## Guide 8: testing
+## Guide 9: testing
 
 The permission model is pure Dart, so the interesting cases need no widget tree:
 
@@ -408,6 +489,20 @@ test('an editor may read but not delete', () {
 
   expect(registry.allowedOperations(Feature.todos, [Role.editor]), {CrudOperation.read});
   expect(registry.isAllowed(Feature.todos, CrudOperation.delete, [Role.editor]), isFalse);
+});
+```
+
+A registry that is only asked about permissions never runs
+`registerDependencies`, so a test about access rights needs no service locator at
+all. When you do want to test the wiring, `get_it` gives you a clean slate:
+
+```dart
+setUp(() => getIt.reset());
+
+test('the todo module registers a repository', () async {
+  await AppRegistry(modules: const [TodoModule()]).registerDependencies();
+
+  expect(getIt.isRegistered<PagingCrudRepository<Todo, String>>(), isTrue);
 });
 ```
 
@@ -440,6 +535,17 @@ exhaustively - the exhaustiveness that earns `F` its type parameter buys nothing
 here, and a fifth parameter would be paid by every app, grouped or not. The
 safety that matters is caught anyway: a module naming an undeclared group is
 rejected when the registry is built.
+
+**Why does `registerDependencies` take no container?** Because the locator is
+the app's. A facade over `get_it` in this package would be too small to express
+async singletons, scopes, named instances or disposal, so every real app would
+reach past it - and then the abstraction is only in the way. `GetIt.instance` is
+already how a module reaches its locator, and a module on `riverpod` or a plain
+global works the same way.
+
+**Why is `registerDependencies` not called by the constructor?** Registration can
+be async and a constructor cannot await. Keeping it separate also means a test
+that only asks about permissions needs no service locator at all.
 
 **Why does group order come from the modules?** Because two ordered lists that
 have to agree is a bug waiting to happen. `groups` says what a group is called;
