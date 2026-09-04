@@ -28,7 +28,7 @@ void main() {
   );
 
   AppRegistry build({Map<Feature, FeatureAccess<Role>>? access}) =>
-      AppRegistry(modules: modules, access: access ?? backendAccess);
+      AppRegistry(modules: modules, groups: appGroups, access: access ?? backendAccess);
 
   group('construction', () {
     test('keeps the modules in order', () {
@@ -37,13 +37,13 @@ void main() {
 
     test('rejects two modules claiming the same feature', () {
       expect(
-        () => AppRegistry(modules: const [TodoModule(), TodoModule()]),
+        () => AppRegistry(modules: const [TodoModule(), TodoModule()], groups: appGroups),
         throwsA(isA<ArgumentError>().having((error) => error.message, 'message', contains('Feature.todos'))),
       );
     });
 
     test('works with no access configuration at all', () {
-      final registry = AppRegistry(modules: modules);
+      final registry = AppRegistry(modules: modules, groups: appGroups);
 
       // The label module brings its own rights, the others have none.
       expect(registry.accessFor(Feature.todos).isDenied, isTrue);
@@ -76,7 +76,7 @@ void main() {
     });
 
     test('denies a feature no module claims', () {
-      final registry = AppRegistry(modules: const [TodoModule()]);
+      final registry = AppRegistry(modules: const [TodoModule()], groups: appGroups);
 
       expect(registry.accessFor(Feature.members).isDenied, isTrue);
       expect(registry.moduleFor(Feature.members), isNull);
@@ -155,7 +155,7 @@ void main() {
     });
 
     test('an unknown feature is refused, not waved through', () {
-      final registry = AppRegistry(modules: const [TodoModule()]);
+      final registry = AppRegistry(modules: const [TodoModule()], groups: appGroups);
 
       for (final operation in CrudOperation.values) {
         expect(registry.isAllowed(Feature.members, operation, const [Role.admin]), isFalse, reason: '$operation');

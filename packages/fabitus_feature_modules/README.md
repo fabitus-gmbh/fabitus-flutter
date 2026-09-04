@@ -9,14 +9,18 @@ final registry = AppRegistry(
   access: parseFeatureAccess(await api.accessRights(), ...),
 );
 
-GoRouter(routes: registry.routes);                          // the router
-Row(children: registry.navigationFor(user.roles));           // the app bar
+GoRouter(routes: registry.routes);                    // the router
+registry.navigationFor(user.roles);                    // a bar, a rail, tabs
+registry.navigationSectionsFor(user.roles);            // a grouped side menu
 registry.isAllowed(Feature.todos, CrudOperation.delete, user.roles);
 ```
 
 - **No router.** `go_router` is not a dependency; it is simply what the route
   type parameter happens to be in a `go_router` app. `auto_route`, `Navigator`
   or plain path strings work the same way.
+- **No opinion on where the navigation sits.** A bar across the top, a rail or
+  drawer down the side, a command palette - the package decides *which* entries
+  a user gets and how they group, never how they are laid out.
 - **No Flutter.** Pure Dart, so the permission model is unit testable without a
   widget tree.
 - **Deny by default.** A feature the backend sent no configuration for grants
@@ -25,14 +29,15 @@ registry.isAllowed(Feature.todos, CrudOperation.delete, user.roles);
 ## Contents
 
 - [Installation](#installation)
-- [The three pieces](#the-three-pieces)
+- [The four pieces](#the-four-pieces)
 - [Guide 1: declaring a module](#guide-1-declaring-a-module)
 - [Guide 2: loading access rights from a backend](#guide-2-loading-access-rights-from-a-backend)
 - [Guide 3: building the registry](#guide-3-building-the-registry)
 - [Guide 4: with go_router](#guide-4-with-go_router)
-- [Guide 5: gating the UI](#guide-5-gating-the-ui)
-- [Guide 6: a feature the backend does not know yet](#guide-6-a-feature-the-backend-does-not-know-yet)
-- [Guide 7: testing](#guide-7-testing)
+- [Guide 5: grouping the navigation](#guide-5-grouping-the-navigation)
+- [Guide 6: gating the UI](#guide-6-gating-the-ui)
+- [Guide 7: a feature the backend does not know yet](#guide-7-a-feature-the-backend-does-not-know-yet)
+- [Guide 8: testing](#guide-8-testing)
 - [Design notes](#design-notes)
 
 ## Installation
@@ -52,13 +57,14 @@ import 'package:fabitus_feature_modules/fabitus_feature_modules.dart';
 Runtime dependencies are `collection` and `freezed_annotation`. You do **not**
 need `build_runner` - the generated code ships with the package.
 
-## The three pieces
+## The four pieces
 
 | Type | Holds |
 | --- | --- |
-| `FeatureModule` | one feature: its id, its routes, its navigation entry |
+| `FeatureModule` | one feature: its id, its routes, its navigation entry, its group |
 | `FeatureAccess` | which roles are granted which `CrudOperation`, and the navigation |
-| `FeatureRegistry` | every module plus the access rights that arrived for them |
+| `FeatureGroup` | a heading several features appear under |
+| `FeatureRegistry` | every module and group plus the access rights that arrived |
 
 A module is a **constant**: it knows nothing about who is logged in, so it can be
 built in a test without a user. Access rights arrive at runtime and live in the
@@ -108,7 +114,9 @@ class TodoModule extends AppModule {
 
 `navigation` is optional - return `null` for a feature reachable only by a deep
 link. Whether the entry is *shown* is not decided here; the registry filters by
-the roles of the user actually looking at it.
+the roles of the user actually looking at it. And nothing says *where* it is
+shown: `TNav` is whatever your navigation is made of, top bar or side rail
+alike - see [Guide 5](#guide-5-grouping-the-navigation).
 
 Because `Feature` is an enum, a `switch` over it stays exhaustive, so adding a
 feature makes the compiler point at every place that has to handle it.
@@ -222,14 +230,97 @@ For another router, change one type parameter. With `auto_route` it is
 `AutoRoute`; with a hand rolled `Navigator` map it can be `String` and the app
 looks the widget up itself.
 
-## Guide 5: gating the UI
+## Guide 5: grouping the navigation
 
-The navigation, filtered for the user looking at it:
+A side navigation is usually sections, not a flat list:
+
+```
+Data
+  Todos
+  Invoices
+Administration
+  Members
+```
+
+Each module names the group it belongs to, and the registry is told what the
+groups are called:
+
+```dart
+enum NavGroup { data, administration }
+
+class TodoModule extends AppModule {
+  const TodoModule();
+
+  @override
+  Object? get group => NavGroup.data;
+
+  // ... id, routes, navigation
+}
+
+final registry = AppRegistry(
+  modules: const [TodoModule(), InvoiceModule(), MemberModule()],
+  groups: const [
+    FeatureGroup<Widget>(id: NavGroup.data, heading: NavSectionHeading('Data')),
+    FeatureGroup<Widget>(
+      id: NavGroup.administration,
+      heading: NavSectionHeading('Administration'),
+    ),
+  ],
+  access: access,
+);
+```
+
+`navigationSectionsFor` then hands you the menu, already filtered:
+
+```dart
+ListView(
+  children: [
+    for (final section in registry.navigationSectionsFor(user.roles)) ...[
+      ?section.heading,
+      for (final entry in section.entries) entry.navigation,
+    ],
+  ],
+);
+```
+
+Three things it decides for you:
+
+- **A section whose entries are all hidden is left out**, so a heading never
+  appears over nothing. An editor who may not administer anything simply has no
+  "Administration".
+- **Section order follows module order.** A section appears where its first
+  visible module appears, and the rest of that group collects into it. One rule
+  governs the whole menu, and reordering `modules` reorders the sections - the
+  `groups` list only supplies headings.
+- **A feature that names no group** lands in a section whose `group` is `null`,
+  keeping its place among the others. Render those without a heading.
+
+A module naming a group that is not declared throws at construction, so a typo
+surfaces at startup rather than as a menu entry that quietly went missing.
+
+For a flat navigation there is nothing to do differently - `navigationFor`
+ignores groups entirely, and `visibleEntriesFor` is the same list with each
+entry's feature attached, for marking the current one:
+
+```dart
+NavigationBar(
+  selectedIndex: entries.indexWhere((entry) => entry.feature == current),
+  destinations: [for (final entry in entries) entry.navigation],
+);
+```
+
+`isGroupVisible(NavGroup.data, roles)` and `featuresInGroup(NavGroup.data)`
+answer the two questions a menu sometimes asks directly.
+
+## Guide 6: gating the UI
+
+The navigation, filtered for the user looking at it - here as a rail, but the
+package does not care:
 
 ```dart
 BlocBuilder<AuthCubit, AuthState>(
-  builder: (context, state) => Row(
-    children: registry.navigationFor(state.roles),
+  builder: (context, state) => NavigationRail(
+    destinations: registry.navigationFor(state.roles),
   ),
 );
 ```
@@ -264,7 +355,7 @@ if (registry.isAllowed(Feature.todos, CrudOperation.delete, user.roles)) {
 }
 ```
 
-## Guide 6: a feature the backend does not know yet
+## Guide 7: a feature the backend does not know yet
 
 A module that ships before the server has a configuration for it would otherwise
 be locked for everyone. Say what it should grant in the meantime:
@@ -299,7 +390,7 @@ feature. Nothing else changes, and no lookup anywhere needs a special case.
 Leave `fallbackAccess` out and an unconfigured feature is denied, which is the
 right default for one you have not thought about.
 
-## Guide 7: testing
+## Guide 8: testing
 
 The permission model is pure Dart, so the interesting cases need no widget tree:
 
@@ -342,6 +433,18 @@ dependency. One typedef per app pays for all of it once.
 **Why is `navigation` separate from `read`?** Because "may open this page" and
 "should be told this module exists" are different questions, and a deep link
 answers only the first.
+
+**Why is a group id `Object` rather than a fifth type parameter?** Because a
+group is something you render a label for, not something you `switch` over
+exhaustively - the exhaustiveness that earns `F` its type parameter buys nothing
+here, and a fifth parameter would be paid by every app, grouped or not. The
+safety that matters is caught anyway: a module naming an undeclared group is
+rejected when the registry is built.
+
+**Why does group order come from the modules?** Because two ordered lists that
+have to agree is a bug waiting to happen. `groups` says what a group is called;
+`modules` says what order everything is in. Adding a module in the right place
+puts it in the right place.
 
 **Why no `cancel` operation?** `CrudOperation` covers the four things a role can
 be granted. Closing a form is not one of them - nobody needs a permission for it,

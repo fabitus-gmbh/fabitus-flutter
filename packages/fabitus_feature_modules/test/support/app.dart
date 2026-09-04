@@ -57,6 +57,9 @@ class NavEntry {
   int get hashCode => label.hashCode;
 }
 
+/// The groups the navigation is split into.
+enum NavGroup { data, administration }
+
 /// The one typedef an app writes, so nothing downstream repeats the parameters.
 typedef AppModule = FeatureModule<Feature, Role, AppRoute, NavEntry>;
 
@@ -74,6 +77,9 @@ class TodoModule extends AppModule {
 
   @override
   NavEntry? get navigation => const NavEntry('Todos');
+
+  @override
+  Object? get group => NavGroup.data;
 }
 
 /// A module the backend does not know about yet, so it brings its own rights.
@@ -88,6 +94,9 @@ class LabelModule extends AppModule {
 
   @override
   NavEntry? get navigation => const NavEntry('Labels');
+
+  @override
+  Object? get group => NavGroup.data;
 
   @override
   FeatureAccess<Role> get fallbackAccess => const FeatureAccess<Role>(
@@ -109,3 +118,24 @@ class MemberModule extends AppModule {
   @override
   List<AppRoute> get routes => const [AppRoute('/members')];
 }
+
+/// The same feature, but with an entry under Administration - for the grouping
+/// tests, which need a second group.
+class VisibleMemberModule extends MemberModule {
+  const VisibleMemberModule();
+
+  @override
+  NavEntry? get navigation => const NavEntry('Members');
+
+  @override
+  Object? get group => NavGroup.administration;
+
+  @override
+  FeatureAccess<Role> get fallbackAccess => const FeatureAccess<Role>(navigation: {Role.admin}, read: {Role.admin});
+}
+
+/// The groups those modules name.
+const List<FeatureGroup<NavEntry>> appGroups = [
+  FeatureGroup<NavEntry>(id: NavGroup.data, heading: NavEntry('Data')),
+  FeatureGroup<NavEntry>(id: NavGroup.administration, heading: NavEntry('Administration')),
+];

@@ -59,10 +59,24 @@ abstract class FeatureModule<F extends Object, R extends Object, TRoute, TNav> {
 
   /// This feature's entry in the navigation, or `null` when it has none.
   ///
-  /// Whether it is *shown* is not decided here - ask
-  /// [FeatureRegistry.navigationFor], which filters by the roles of the user
-  /// actually looking at it.
+  /// Nothing here says where that navigation is: a bar across the top, a rail
+  /// or drawer down the side, a command palette. [TNav] is whatever your app
+  /// builds it from, and the registry only decides *which* entries a given user
+  /// gets - see [FeatureRegistry.navigationFor].
   TNav? get navigation => null;
+
+  /// The group this feature's entry appears under, or `null` for a feature that
+  /// sits at the top level.
+  ///
+  /// Identified by equality, so an `enum` of the app's own is the natural
+  /// choice, and every group used has to be declared on the
+  /// [FeatureRegistry] - which is where a typo is caught.
+  ///
+  /// ```dart
+  /// @override
+  /// Object? get group => NavGroup.data;
+  /// ```
+  Object? get group => null;
 
   /// The access rights to use while the backend sends none for this feature.
   ///
