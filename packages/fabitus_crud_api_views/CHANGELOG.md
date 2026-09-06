@@ -18,4 +18,10 @@ with the design system taken out.
   next page on scroll or on demand. `cacheExtent` is the prefetch knob.
 - `CrudLoadedTable` over a `LoadCubit`, sorting and filtering the whole
   collection in memory.
+- `CrudPaginationProvider` and `CrudLoadProvider`, which create, own and close
+  the cubit, turn the filter into a widget property so a search field only has to
+  rebuild, and reread the view when a `CrudService.events` stream announces a
+  write - coalescing a burst into one request. Composed with a view rather than
+  fused into one widget per view, so a builder added to a table does not have to
+  be forwarded through a second class.
 - Nothing imports `material.dart`, so none of it can acquire a look by accident.

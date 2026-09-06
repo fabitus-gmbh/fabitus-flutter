@@ -8,6 +8,9 @@ Initial release. Generalised from the Toolbox's `core/bloc`, as cubits.
   list alike, so the three classes it replaces - a bloc, a cubit and a list
   cubit - become one. `refresh()` keeps the current value on screen, and a failed
   refresh keeps it beside the error.
+- `PaginationCubit.updateQuery`, applying a new request and a new filter
+  together: `updateRequest` alone keeps the current filter, and calling both in
+  turn reads the first page twice.
 - `PaginationCubit`/`PaginationState` for walking a paged collection, offset or
   cursor based, exposing both the current page and everything read so far. Pages
   already read are kept, so going back needs no cursor.

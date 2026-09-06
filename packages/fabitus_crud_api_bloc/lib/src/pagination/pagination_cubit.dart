@@ -64,7 +64,18 @@ class PaginationCubit<T, F> extends Cubit<PaginationState<T, F>> {
   Future<void> updateFilter(F filter) => _reload(state.initialRequest, filter: filter);
 
   /// Applies a new page size or sort order and reads the first page again.
+  ///
+  /// Keeps the current filter. To change both at once use [updateQuery] - doing
+  /// this and [updateFilter] in turn would read the first page twice, and doing
+  /// only this one would quietly keep the old filter.
   Future<void> updateRequest(PageRequest request) => _reload(request, filter: state.filter);
+
+  /// Applies a new request and a new filter together, reading the first page
+  /// once.
+  ///
+  /// Both are required: with `F` nullable or `void` there is no value that could
+  /// mean "leave this one alone".
+  Future<void> updateQuery(PageRequest request, F filter) => _reload(request, filter: filter);
 
   /// Moves to the following page, reading it when it is not held yet.
   Future<void> nextPage() async {

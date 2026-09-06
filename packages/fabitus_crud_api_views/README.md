@@ -38,6 +38,7 @@ CrudPaginatedTable<Todo, void>(
 - [What the package owns, and what you do](#what-the-package-owns-and-what-you-do)
 - [Guide 1: columns](#guide-1-columns)
 - [Guide 2: a paged table](#guide-2-a-paged-table)
+- [Guide 2b: letting the provider own the cubit](#guide-2b-letting-the-provider-own-the-cubit)
 - [Guide 3: the footer](#guide-3-the-footer)
 - [Guide 4: an endless scroll](#guide-4-an-endless-scroll)
 - [Guide 5: a load more list](#guide-5-a-load-more-list)
@@ -157,6 +158,64 @@ page keeps them on screen rather than flashing a spinner;
 `controls.isLoading` lets the footer say so, and `rowBuilder` can dim the body if
 you want that.
 
+## Guide 2b: letting the provider own the cubit
+
+The `BlocProvider(create: ...)` above is the same six lines on every screen, and
+it leaves three things to do by hand. `CrudPaginationProvider` does them:
+
+```dart
+CrudPaginationProvider<Todo, TodoFilter>(
+  loadPage: (request, filter) => repository.search(filter, request),
+  filter: TodoFilter(query: _query),        // a property, not a method call
+  pageRequest: OffsetPageRequest(size: 25, sort: Sort.by('title')),
+  refreshOn: todoService.events,            // reread when anything is written
+  child: CrudPaginatedTable<Todo, TodoFilter>(columns: columns),
+);
+```
+
+- **The cubit is created, owned and closed** with the widget.
+- **Filtering is declarative.** A search field only has to rebuild; the cubit is
+  told when the value actually *changes*, and reading starts over at page one.
+  `F` needs a meaningful `==` for that - a `freezed` filter, a record or a
+  `String` all have one. Use `void` and `filter: null` when there is nothing to
+  filter by.
+- **The view stays current.** Point `refreshOn` at a
+  [`CrudService.events`](../fabitus_crud_api#guide-6-services-events-and-dependency-injection)
+  stream and the list rereads itself whenever something is created, updated or
+  deleted, wherever in the app that happened. A burst - a bulk delete announcing
+  ten deletions - costs one request, not ten.
+
+`CrudLoadProvider` is the same for a collection read whole:
+
+```dart
+CrudLoadProvider<List<Todo>>(
+  load: repository.findAll,
+  refreshOn: todoService.events,
+  child: CrudLoadedTable<Todo>(columns: columns),
+);
+```
+
+It refreshes rather than reloads, so the rows stay on screen while it rereads.
+
+### Why a provider and not one widget per view
+
+A combined `CrudPaginatedTableView` would have to forward every builder the table
+already takes - and the endless scroll, the load-more list and the loaded table
+would each need their own copy. Every builder added anywhere would then have to
+be added twice. Composing costs one line and stays honest:
+
+```dart
+CrudPaginationProvider<Todo, void>(
+  loadPage: (request, _) => repository.findPage(request),
+  filter: null,
+  child: CrudInfiniteList<Todo, void>(itemBuilder: ...),
+);
+```
+
+What actually shortens a call site to "a service plus some config" is your own
+wrapper, because that is where the builders belong - see
+[Guide 7](#guide-7-bringing-your-design-system).
+
 ## Guide 3: the footer
 
 `footerBuilder` gets a `PaginationControls`: everything a footer needs to know
@@ -271,7 +330,44 @@ view is for a first load that failed.
 ## Guide 7: bringing your design system
 
 Wrap the widget once, with your builders baked in, and the rest of the app never
-passes them again:
+passes them again. Put the provider in the same wrapper and a screen is down to
+its data and its columns:
+
+```dart
+// Somewhere in your design system, written once:
+class AcmePagedTable<T, F> extends StatelessWidget {
+  const AcmePagedTable({
+    required this.loadPage,
+    required this.filter,
+    required this.columns,
+    this.pageRequest = const OffsetPageRequest(size: 25),
+    this.refreshOn,
+    this.onRowTap,
+    super.key,
+  });
+  // ... fields
+
+  @override
+  Widget build(BuildContext context) => CrudPaginationProvider<T, F>(
+    loadPage: loadPage,
+    filter: filter,
+    pageRequest: pageRequest,
+    refreshOn: refreshOn,
+    child: AcmeTable<T, F>(columns: columns, onRowTap: onRowTap),
+  );
+}
+
+// And then, on every screen that has a table:
+AcmePagedTable<Todo, TodoFilter>(
+  loadPage: (request, filter) => repository.search(filter, request),
+  filter: TodoFilter(query: _query),
+  refreshOn: todoService.events,
+  columns: todoColumns,
+  onRowTap: _open,
+);
+```
+
+The table underneath, with the design decisions in one place:
 
 ```dart
 class AcmeTable<T, F> extends StatelessWidget {

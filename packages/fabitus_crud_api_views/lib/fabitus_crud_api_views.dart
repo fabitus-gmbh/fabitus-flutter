@@ -14,6 +14,11 @@
 /// from `fabitus_crud_api_bloc`. [CrudTable] is the plain table underneath, for
 /// rows that come from somewhere else entirely.
 ///
+/// [CrudPaginationProvider] and [CrudLoadProvider] create, own and close those
+/// cubits, turn a filter into a widget property and keep the view current when
+/// something is written elsewhere in the app. Compose one with whichever view
+/// fits.
+///
 /// **Nothing here paints.** These widgets own the wiring, the column sizing and
 /// the sort interaction; every colour, border, divider, padding and font comes
 /// from a builder you pass. They import `package:flutter/widgets.dart`, not
@@ -25,9 +30,11 @@ library;
 export 'package:flutter/rendering.dart' show ScrollCacheExtent;
 
 export 'src/crud_table.dart';
+export 'src/load_provider.dart';
 export 'src/loaded_table.dart';
 export 'src/page_request_sort.dart';
 export 'src/paged_list.dart';
 export 'src/paginated_table.dart';
 export 'src/pagination_controls.dart';
+export 'src/pagination_provider.dart';
 export 'src/table_column.dart';

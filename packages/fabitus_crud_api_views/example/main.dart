@@ -199,8 +199,12 @@ class EndlessTab extends StatelessWidget {
   final PagingCrudRepository<Todo, String> repository;
 
   @override
-  Widget build(BuildContext context) => BlocProvider(
-    create: (_) => pagedCubit(repository, size: 8),
+  // The provider owns the cubit, so this tab needs no BlocProvider and no
+  // close(). Point refreshOn at a CrudService and it rereads itself too.
+  Widget build(BuildContext context) => CrudPaginationProvider<Todo, void>(
+    loadPage: (request, _) => repository.findPage(request),
+    filter: null,
+    pageRequest: OffsetPageRequest(size: 8, sort: Sort.by('title')),
     child: CrudInfiniteList<Todo, void>(
       itemBuilder: (context, todo, index) => ListTile(title: Text(todo.title)),
       separatorBuilder: (context, index) => const Divider(height: 1),
@@ -254,8 +258,8 @@ class _EverythingTabState extends State<EverythingTab> {
   String _query = '';
 
   @override
-  Widget build(BuildContext context) => BlocProvider(
-    create: (_) => LoadCubit<List<Todo>>(widget.repository.findAll, loadOnCreate: true),
+  Widget build(BuildContext context) => CrudLoadProvider<List<Todo>>(
+    load: widget.repository.findAll,
     child: Column(
       children: [
         Padding(

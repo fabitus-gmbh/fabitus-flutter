@@ -248,6 +248,49 @@ void main() {
       expect(cubit.state.initialRequest, OffsetPageRequest(size: 4));
     });
 
+    test('updateQuery applies both at once, reading only once', () async {
+      final repo = seededRepository(6);
+      var reads = 0;
+      final cubit = PaginationCubit<Todo, String>(
+        loadPage: (request, filter) {
+          reads++;
+          return repo.findPage(request);
+        },
+        initialRequest: OffsetPageRequest(size: 2),
+        initialFilter: 'all',
+      );
+      addTearDown(cubit.close);
+      await cubit.loadFirstPage();
+      await cubit.nextPage();
+
+      await cubit.updateQuery(OffsetPageRequest(size: 4), 'done');
+
+      expect(reads, 3);
+      expect(cubit.state.filter, 'done');
+      expect(cubit.state.initialRequest, OffsetPageRequest(size: 4));
+      expect(cubit.state.items, hasLength(4));
+      expect(cubit.state.index, 0);
+    });
+
+    test('updateRequest on its own keeps the current filter', () async {
+      final repo = seededRepository(4);
+      final seen = <String>[];
+      final cubit = PaginationCubit<Todo, String>(
+        loadPage: (request, filter) {
+          seen.add(filter);
+          return repo.findPage(request);
+        },
+        initialRequest: OffsetPageRequest(size: 2),
+        initialFilter: 'all',
+      );
+      addTearDown(cubit.close);
+      await cubit.loadFirstPage();
+
+      await cubit.updateRequest(OffsetPageRequest(size: 4));
+
+      expect(seen, ['all', 'all']);
+    });
+
     test('refresh rereads the first page', () async {
       final cubit = build();
       await cubit.loadFirstPage();
