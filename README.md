@@ -11,6 +11,7 @@ dependency resolution and one `pubspec.lock` at the repo root.
 | [`fabitus_crud_api`](packages/fabitus_crud_api) | Spring Data style CRUD repositories, pagination and error handling, with in-memory, key-value and remote implementations. |
 | [`fabitus_crud_api_bloc`](packages/fabitus_crud_api_bloc) | Cubits and widgets for driving `fabitus_crud_api` from Flutter: load, paginate, edit. |
 | [`fabitus_crud_api_dio`](packages/fabitus_crud_api_dio) | Dio adapter for `fabitus_crud_api`: a ready made `CrudErrorMapper`. |
+| [`fabitus_crud_api_views`](packages/fabitus_crud_api_views) | Headless lists and tables: infinite scroll, load more, paged tables, full list tables. |
 | [`fabitus_feature_modules`](packages/fabitus_feature_modules) | Declare an app's features as modules with their own routes, navigation and role based access rights. |
 | [`fabitus_problem_details`](packages/fabitus_problem_details) | RFC 9457 problem details for HTTP APIs, with tolerant parsing. |
 
@@ -40,10 +41,13 @@ independent of each other and free of Flutter: the first has no transport and no
 opinion about a backend's error format, the second is that format on its own, the
 third knows nothing about a router or a widget toolkit.
 
-Two adapters sit on top, and you depend on them only where they apply:
-`fabitus_crud_api_dio` (Dio, plus the RFC 9457 reading) and
-`fabitus_crud_api_bloc` (Flutter and `flutter_bloc`). They know nothing about
-each other - the bloc layer sees a typed `CrudException` whoever produced it.
+The Flutter and transport layers sit on top, and you depend on them only where
+they apply: `fabitus_crud_api_dio` (Dio, plus the RFC 9457 reading),
+`fabitus_crud_api_bloc` (Flutter and `flutter_bloc`) and
+`fabitus_crud_api_views` (lists and tables over those cubits). The dio package
+and the Flutter ones know nothing about each other - the bloc layer sees a typed
+`CrudException` whoever produced it - and nothing in the view layer paints, so
+your design system stays yours.
 
 ## Getting started
 
