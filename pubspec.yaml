@@ -13,6 +13,8 @@ workspace:
   - packages/fabitus_crud_api_dio
   - packages/fabitus_crud_api_forms
   - packages/fabitus_crud_api_views
+  - packages/fabitus_cognito_auth
+  - packages/fabitus_cognito_auth_dio
   - packages/fabitus_feature_modules
   - packages/fabitus_problem_details
 
