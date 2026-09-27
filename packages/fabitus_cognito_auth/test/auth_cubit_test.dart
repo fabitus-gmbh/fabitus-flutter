@@ -2,10 +2,9 @@ import 'dart:async';
 
 import 'package:bloc_test/bloc_test.dart';
 import 'package:fabitus_cognito_auth/fabitus_cognito_auth.dart';
+import 'package:fabitus_cognito_auth/testing.dart';
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
-
-import 'support/fake_cognito.dart';
 
 Matcher _unauthenticatedWith(AuthFailure? failure) =>
     isA<AuthUnauthenticated>().having((s) => s.error?.failure, 'failure', failure);
@@ -30,7 +29,7 @@ void main() {
       expect: () => [const AuthUnauthenticated()],
     );
 
-    final valid = sessionFor('jane');
+    final valid = fakeSession('jane');
     blocTest<AuthCubit, AuthState>(
       'picks up a valid session without calling Cognito',
       setUp: () => store.session = valid,
@@ -40,8 +39,8 @@ void main() {
       verify: (_) => expect(cognito.calls, isEmpty),
     );
 
-    final expired = sessionFor('jane', validFor: const Duration(minutes: -5));
-    final fresh = sessionFor('jane', refreshToken: 'refresh-1');
+    final expired = fakeSession('jane', validFor: const Duration(minutes: -5));
+    final fresh = fakeSession('jane', refreshToken: 'refresh-1');
     blocTest<AuthCubit, AuthState>(
       'refreshes an expired session and stores the result',
       setUp: () {
@@ -50,7 +49,7 @@ void main() {
       },
       build: build,
       act: (cubit) => cubit.restore(),
-      expect: () => [const AuthInProgress(), AuthAuthenticated(fresh)],
+      expect: () => [const AuthInProgress(AuthStep.restore), AuthAuthenticated(fresh)],
       verify: (_) => expect(store.session, fresh),
     );
 
@@ -62,7 +61,7 @@ void main() {
       },
       build: build,
       act: (cubit) => cubit.restore(),
-      expect: () => [const AuthInProgress(), _unauthenticatedWith(AuthFailure.sessionExpired)],
+      expect: () => [const AuthInProgress(AuthStep.restore), _unauthenticatedWith(AuthFailure.sessionExpired)],
       verify: (_) => expect(store.session, isNull),
     );
 
@@ -70,11 +69,15 @@ void main() {
       'offline, an expired session is kept for a later refresh',
       setUp: () => store.session = expired,
       build: () => AuthCubit(
-        CognitoAuthClient(userPoolId: userPoolId, clientId: clientId, httpClient: _OfflineClient()),
+        CognitoAuthClient(
+          userPoolId: FakeCognito.userPoolId,
+          clientId: FakeCognito.clientId,
+          httpClient: _OfflineClient(),
+        ),
         store: store,
       ),
       act: (cubit) => cubit.restore(),
-      expect: () => [const AuthInProgress(), AuthAuthenticated(expired)],
+      expect: () => [const AuthInProgress(AuthStep.restore), AuthAuthenticated(expired)],
       verify: (_) => expect(store.session, expired),
     );
 
@@ -92,14 +95,14 @@ void main() {
   });
 
   group('signIn', () {
-    final session = sessionFor('jane');
+    final session = fakeSession('jane');
 
     blocTest<AuthCubit, AuthState>(
       'signs in and stores the session',
       setUp: () => cognito.initiateAuth = (_) => FakeCognito.authenticated(session),
       build: build,
       act: (cubit) => cubit.signIn('  jane ', 'secret'),
-      expect: () => [const AuthInProgress(), AuthAuthenticated(session)],
+      expect: () => [const AuthInProgress(AuthStep.signIn), AuthAuthenticated(session)],
       verify: (_) {
         expect(store.session, session);
         expect(cognito.calls.single.body['AuthParameters'], containsPair('USERNAME', 'jane'));
@@ -119,7 +122,7 @@ void main() {
       setUp: () => cognito.initiateAuth = (_) => FakeCognito.error('NotAuthorizedException', 'Incorrect'),
       build: build,
       act: (cubit) => cubit.signIn('jane', 'wrong'),
-      expect: () => [const AuthInProgress(), _unauthenticatedWith(AuthFailure.invalidCredentials)],
+      expect: () => [const AuthInProgress(AuthStep.signIn), _unauthenticatedWith(AuthFailure.invalidCredentials)],
       verify: (_) => expect(store.session, isNull),
     );
 
@@ -128,8 +131,8 @@ void main() {
       cognito.initiateAuth = (_) => FakeCognito.authenticated(session);
       final cubit = AuthCubit(
         CognitoAuthClient(
-          userPoolId: userPoolId,
-          clientId: clientId,
+          userPoolId: FakeCognito.userPoolId,
+          clientId: FakeCognito.clientId,
           httpClient: _DelayedClient(cognito.httpClient, response.future),
         ),
       );
@@ -146,7 +149,7 @@ void main() {
   });
 
   group('the new password challenge', () {
-    final session = sessionFor('jane');
+    final session = fakeSession('jane');
 
     setUp(() {
       cognito.initiateAuth = (_) => FakeCognito.newPasswordChallenge(requiredAttributes: ['name']);
@@ -161,9 +164,9 @@ void main() {
         await cubit.submitNewPassword('NewSecret123!', attributes: {'name': 'Jane'});
       },
       expect: () => [
-        const AuthInProgress(),
+        const AuthInProgress(AuthStep.signIn),
         const AuthNewPasswordRequired(requiredAttributes: ['name']),
-        const AuthInProgress(),
+        const AuthInProgress(AuthStep.newPassword),
         AuthAuthenticated(session),
       ],
       verify: (_) => expect(store.session, session),
@@ -178,10 +181,10 @@ void main() {
         await cubit.submitNewPassword('LongEnough123!');
       },
       expect: () => [
-        const AuthInProgress(),
+        const AuthInProgress(AuthStep.signIn),
         const AuthNewPasswordRequired(requiredAttributes: ['name']),
         isA<AuthNewPasswordRequired>().having((s) => s.error?.failure, 'failure', AuthFailure.invalidPassword),
-        const AuthInProgress(),
+        const AuthInProgress(AuthStep.newPassword),
         AuthAuthenticated(session),
       ],
       verify: (_) => expect(cognito.operations, ['InitiateAuth', 'RespondToAuthChallenge']),
@@ -197,7 +200,7 @@ void main() {
       },
       skip: 2,
       expect: () => [
-        const AuthInProgress(),
+        const AuthInProgress(AuthStep.newPassword),
         isA<AuthNewPasswordRequired>().having((s) => s.error?.failure, 'failure', AuthFailure.invalidPassword),
       ],
     );
@@ -231,8 +234,8 @@ void main() {
   });
 
   group('refresh', () {
-    final initial = sessionFor('jane', refreshToken: 'refresh-1');
-    final fresh = sessionFor('jane', validFor: const Duration(hours: 2), refreshToken: 'refresh-1');
+    final initial = fakeSession('jane', refreshToken: 'refresh-1');
+    final fresh = fakeSession('jane', validFor: const Duration(hours: 2), refreshToken: 'refresh-1');
 
     Future<AuthCubit> signedIn() async {
       store.session = initial;
@@ -295,7 +298,7 @@ void main() {
       expect(cognito.calls, isEmpty);
 
       // Cognito hands out a session within the leeway of its expiry.
-      final nearlyExpired = sessionFor('jane', validFor: const Duration(seconds: 30));
+      final nearlyExpired = fakeSession('jane', validFor: const Duration(seconds: 30));
       cognito.initiateAuth = (_) => FakeCognito.authenticated(nearlyExpired);
       await cubit.signIn('jane', 'secret');
       expect(cubit.state, AuthAuthenticated(nearlyExpired));
@@ -313,8 +316,8 @@ void main() {
       cognito.initiateAuth = (_) => FakeCognito.authenticated(fresh);
       final slow = AuthCubit(
         CognitoAuthClient(
-          userPoolId: userPoolId,
-          clientId: clientId,
+          userPoolId: FakeCognito.userPoolId,
+          clientId: FakeCognito.clientId,
           httpClient: _DelayedClient(cognito.httpClient, response.future),
         ),
         store: store,
@@ -334,7 +337,7 @@ void main() {
   });
 
   group('signOut', () {
-    final session = sessionFor('jane', refreshToken: 'refresh-1');
+    final session = fakeSession('jane', refreshToken: 'refresh-1');
 
     blocTest<AuthCubit, AuthState>(
       'drops the session and clears the store',
@@ -387,9 +390,9 @@ void main() {
   blocTest<AuthCubit, AuthState>(
     'a failing store does not fail the step and reports the error',
     build: () => AuthCubit(cognito.client(), store: _FailingStore()),
-    setUp: () => cognito.initiateAuth = (_) => FakeCognito.authenticated(sessionFor('jane')),
+    setUp: () => cognito.initiateAuth = (_) => FakeCognito.authenticated(fakeSession('jane')),
     act: (cubit) => cubit.signIn('jane', 'secret'),
-    expect: () => [const AuthInProgress(), isA<AuthAuthenticated>()],
+    expect: () => [const AuthInProgress(AuthStep.signIn), isA<AuthAuthenticated>()],
     errors: () => [isA<StateError>()],
   );
 }

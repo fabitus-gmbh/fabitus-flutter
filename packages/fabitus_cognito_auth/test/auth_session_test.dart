@@ -1,14 +1,13 @@
 import 'dart:convert';
 
 import 'package:fabitus_cognito_auth/fabitus_cognito_auth.dart';
+import 'package:fabitus_cognito_auth/testing.dart';
 import 'package:test/test.dart';
-
-import 'support/fake_cognito.dart';
 
 void main() {
   group('AuthSession', () {
     test('reads the user from the id token', () {
-      final user = sessionFor('jane', groups: ['admin', 'editor']).user;
+      final user = fakeSession('jane', groups: ['admin', 'editor']).user;
 
       expect(user.username, 'jane');
       expect(user.subject, 'sub-jane');
@@ -30,8 +29,8 @@ void main() {
     test('expires at the earlier of the two tokens', () {
       final now = DateTime.utc(2026, 1, 1, 12);
       final session = AuthSession(
-        idToken: jwt({'sub': 'a'}, expiresAt: now.add(const Duration(minutes: 30))),
-        accessToken: jwt({'sub': 'a'}, expiresAt: now.add(const Duration(minutes: 10))),
+        idToken: fakeJwt({'sub': 'a'}, expiresAt: now.add(const Duration(minutes: 30))),
+        accessToken: fakeJwt({'sub': 'a'}, expiresAt: now.add(const Duration(minutes: 10))),
         refreshToken: 'r',
       );
 
@@ -42,20 +41,20 @@ void main() {
     });
 
     test('hands out the token of either type', () {
-      final session = sessionFor('jane');
+      final session = fakeSession('jane');
 
       expect(session.token(AuthTokenType.id), session.idToken);
       expect(session.token(AuthTokenType.access), session.accessToken);
     });
 
     test('round trips through json', () {
-      final session = sessionFor('jane');
+      final session = fakeSession('jane');
 
       expect(AuthSession.fromJson(json.decode(json.encode(session.toJson())) as Map<String, dynamic>), session);
     });
 
     test('reads the json the Auth model of earlier apps wrote', () {
-      final session = sessionFor('jane');
+      final session = fakeSession('jane');
       final legacy = {
         'accessToken': session.accessToken,
         'refreshToken': session.refreshToken,
@@ -71,7 +70,7 @@ void main() {
     });
 
     test('toString does not leak tokens', () {
-      final session = sessionFor('jane');
+      final session = fakeSession('jane');
 
       expect(session.toString(), isNot(contains(session.idToken)));
       expect(session.toString(), isNot(contains(session.refreshToken)));
@@ -93,7 +92,7 @@ void main() {
     });
 
     test('writes, reads and clears the session', () async {
-      final session = sessionFor('jane');
+      final session = fakeSession('jane');
 
       await store.write(session);
       expect(values.keys, ['fabitus_cognito_auth.session']);

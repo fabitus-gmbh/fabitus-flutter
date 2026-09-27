@@ -3,7 +3,7 @@ description: >-
   Username and password login against an AWS Cognito user pool, with session
   restore, token refresh and the NEW_PASSWORD_REQUIRED challenge, for APIs
   behind an API Gateway Cognito authorizer.
-version: 0.1.0
+version: 0.2.0
 repository: https://github.com/fabitus-gmbh/fabitus-flutter
 issue_tracker: https://github.com/fabitus-gmbh/fabitus-flutter/issues
 topics:

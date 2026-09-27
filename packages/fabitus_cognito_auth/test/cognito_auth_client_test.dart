@@ -1,8 +1,7 @@
 import 'package:fabitus_cognito_auth/fabitus_cognito_auth.dart';
+import 'package:fabitus_cognito_auth/testing.dart';
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
-
-import 'support/fake_cognito.dart';
 
 Matcher _failsWith(AuthFailure failure) => throwsA(isA<AuthException>().having((e) => e.failure, 'failure', failure));
 
@@ -17,7 +16,7 @@ void main() {
 
   group('signIn', () {
     test('returns the session Cognito issued', () async {
-      final session = sessionFor('jane', groups: ['editor']);
+      final session = fakeSession('jane', groups: ['editor']);
       cognito.initiateAuth = (_) => FakeCognito.authenticated(session);
 
       final result = await client.signIn('jane', 'secret');
@@ -30,13 +29,13 @@ void main() {
     });
 
     test('uses USER_PASSWORD_AUTH by default', () async {
-      cognito.initiateAuth = (_) => FakeCognito.authenticated(sessionFor('jane'));
+      cognito.initiateAuth = (_) => FakeCognito.authenticated(fakeSession('jane'));
 
       await client.signIn('jane', 'secret');
 
       final body = cognito.calls.single.body;
       expect(body['AuthFlow'], 'USER_PASSWORD_AUTH');
-      expect(body['ClientId'], clientId);
+      expect(body['ClientId'], FakeCognito.clientId);
       expect(body['AuthParameters'], containsPair('USERNAME', 'jane'));
       expect(body['AuthParameters'], containsPair('PASSWORD', 'secret'));
     });
@@ -82,7 +81,11 @@ void main() {
     });
 
     test('a request that never arrives is a network failure', () async {
-      final offline = CognitoAuthClient(userPoolId: userPoolId, clientId: clientId, httpClient: _ThrowingClient());
+      final offline = CognitoAuthClient(
+        userPoolId: FakeCognito.userPoolId,
+        clientId: FakeCognito.clientId,
+        httpClient: _ThrowingClient(),
+      );
 
       await expectLater(offline.signIn('jane', 'secret'), _failsWith(AuthFailure.network));
     });
@@ -97,7 +100,7 @@ void main() {
 
   group('completeNewPassword', () {
     test('answers the challenge on the session that raised it', () async {
-      final session = sessionFor('jane');
+      final session = fakeSession('jane');
       cognito.initiateAuth = (_) => FakeCognito.newPasswordChallenge();
       cognito.respondToAuthChallenge = (_) => FakeCognito.authenticated(session);
 
@@ -137,8 +140,8 @@ void main() {
 
   group('refresh', () {
     test('keeps the refresh token when Cognito sends none', () async {
-      final stale = sessionFor('jane', validFor: Duration.zero, refreshToken: 'refresh-1');
-      final fresh = sessionFor('jane', refreshToken: 'ignored');
+      final stale = fakeSession('jane', validFor: Duration.zero, refreshToken: 'refresh-1');
+      final fresh = fakeSession('jane', refreshToken: 'ignored');
       cognito.initiateAuth = (_) => FakeCognito.authenticated(fresh, includeRefreshToken: false);
 
       final refreshed = await client.refresh(stale);
@@ -153,9 +156,9 @@ void main() {
     test('uses GetTokensFromRefreshToken with rotation, and takes the new refresh token', () async {
       final rotating = cognito.client(refreshTokenRotation: true);
       cognito.getTokensFromRefreshToken = (_) =>
-          FakeCognito.authenticated(sessionFor('jane', refreshToken: 'refresh-2'));
+          FakeCognito.authenticated(fakeSession('jane', refreshToken: 'refresh-2'));
 
-      final refreshed = await rotating.refresh(sessionFor('jane', refreshToken: 'refresh-1'));
+      final refreshed = await rotating.refresh(fakeSession('jane', refreshToken: 'refresh-1'));
 
       expect(cognito.operations, ['GetTokensFromRefreshToken']);
       expect(refreshed.refreshToken, 'refresh-2');
@@ -164,30 +167,34 @@ void main() {
     test('a rejected refresh token ends the session', () async {
       cognito.initiateAuth = (_) => FakeCognito.error('NotAuthorizedException', 'Refresh Token has expired');
 
-      await expectLater(client.refresh(sessionFor('jane')), _failsWith(AuthFailure.sessionExpired));
+      await expectLater(client.refresh(fakeSession('jane')), _failsWith(AuthFailure.sessionExpired));
     });
 
     test('a reused rotated refresh token ends the session', () async {
       final rotating = cognito.client(refreshTokenRotation: true);
       cognito.getTokensFromRefreshToken = (_) => FakeCognito.error('RefreshTokenReuseException', 'reused');
 
-      await expectLater(rotating.refresh(sessionFor('jane')), _failsWith(AuthFailure.sessionExpired));
+      await expectLater(rotating.refresh(fakeSession('jane')), _failsWith(AuthFailure.sessionExpired));
     });
 
     test('a network failure does not end the session', () async {
-      final offline = CognitoAuthClient(userPoolId: userPoolId, clientId: clientId, httpClient: _ThrowingClient());
+      final offline = CognitoAuthClient(
+        userPoolId: FakeCognito.userPoolId,
+        clientId: FakeCognito.clientId,
+        httpClient: _ThrowingClient(),
+      );
 
-      await expectLater(offline.refresh(sessionFor('jane')), _failsWith(AuthFailure.network));
+      await expectLater(offline.refresh(fakeSession('jane')), _failsWith(AuthFailure.network));
     });
   });
 
   test('revoke sends the refresh token to RevokeToken', () async {
     cognito.revokeToken = (_) => FakeCognito.ok();
 
-    await client.revoke(sessionFor('jane', refreshToken: 'refresh-1'));
+    await client.revoke(fakeSession('jane', refreshToken: 'refresh-1'));
 
     expect(cognito.calls.single.operation, 'RevokeToken');
-    expect(cognito.calls.single.body, {'ClientId': clientId, 'Token': 'refresh-1'});
+    expect(cognito.calls.single.body, {'ClientId': FakeCognito.clientId, 'Token': 'refresh-1'});
   });
 }
 

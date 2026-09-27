@@ -106,7 +106,7 @@ class AuthCubit extends Cubit<AuthState> implements AuthTokenSource {
     }
 
     final generation = _generation;
-    emit(const AuthInProgress());
+    emit(const AuthInProgress(AuthStep.restore));
     try {
       final refreshed = await _client.refresh(stored);
       if (_isStale(generation)) return;
@@ -138,7 +138,7 @@ class AuthCubit extends Cubit<AuthState> implements AuthTokenSource {
 
     final generation = ++_generation;
     _challenge = null;
-    emit(const AuthInProgress());
+    emit(const AuthInProgress(AuthStep.signIn));
     try {
       final result = await _client.signIn(name, password);
       if (_isStale(generation)) return;
@@ -184,7 +184,7 @@ class AuthCubit extends Cubit<AuthState> implements AuthTokenSource {
     }
 
     final generation = _generation;
-    emit(const AuthInProgress());
+    emit(const AuthInProgress(AuthStep.newPassword));
     try {
       final session = await _client.completeNewPassword(challenge, newPassword, attributes: attributes);
       if (_isStale(generation)) return;

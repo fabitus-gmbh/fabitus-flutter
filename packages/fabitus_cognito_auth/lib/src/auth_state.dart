@@ -36,13 +36,17 @@ sealed class AuthState {
   /// Whether somebody is signed in.
   bool get isAuthenticated => this is AuthAuthenticated;
 
-  /// Whether the stored session has been looked at yet. A router should hold
-  /// off redirecting until it has.
-  bool get isRestored => this is! AuthInitial;
+  /// Whether the stored session has been looked at yet - `false` in
+  /// [AuthInitial] and while the restore refreshes it. A router should hold off
+  /// redirecting until it is `true`.
+  bool get isRestored => switch (this) {
+    AuthInitial() || AuthInProgress(step: AuthStep.restore) => false,
+    _ => true,
+  };
 }
 
 /// The stored session has not been looked at yet - the state until
-/// `AuthCubit.restore` has run.
+/// `AuthCubit.restore` runs.
 final class AuthInitial extends AuthState {
   /// Creates the initial state.
   const AuthInitial();
@@ -57,19 +61,39 @@ final class AuthInitial extends AuthState {
   String toString() => 'AuthInitial()';
 }
 
+/// Which step an [AuthInProgress] is waiting for.
+enum AuthStep {
+  /// `AuthCubit.restore` refreshing the stored session on start.
+  restore,
+
+  /// `AuthCubit.signIn`.
+  signIn,
+
+  /// `AuthCubit.submitNewPassword`.
+  newPassword,
+}
+
 /// A sign in, a new password or a session restore is on its way to Cognito.
 final class AuthInProgress extends AuthState {
-  /// Creates the in progress state.
-  const AuthInProgress();
+  /// Creates the in progress state for [step].
+  const AuthInProgress(this.step);
+
+  /// What is in progress.
+  ///
+  /// Lets the UI stay where it is: a new password form keeps showing while its
+  /// answer is on the way, and a route guard does not send a deep link to the
+  /// login page while the restore has yet to decide whether anybody is signed
+  /// in.
+  final AuthStep step;
 
   @override
-  bool operator ==(Object other) => other is AuthInProgress;
+  bool operator ==(Object other) => other is AuthInProgress && other.step == step;
 
   @override
-  int get hashCode => (AuthInProgress).hashCode;
+  int get hashCode => Object.hash(AuthInProgress, step);
 
   @override
-  String toString() => 'AuthInProgress()';
+  String toString() => 'AuthInProgress(${step.name})';
 }
 
 /// Nobody is signed in.

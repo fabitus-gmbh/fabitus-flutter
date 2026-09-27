@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0
+
+- **Breaking:** `AuthInProgress` names its `AuthStep` - `restore`, `signIn` or
+  `newPassword` - so a new password form keeps showing while its answer is on
+  the way. `const AuthInProgress()` becomes `const AuthInProgress(AuthStep.signIn)`.
+- `AuthState.isRestored` stays `false` while the restore refreshes the stored
+  session, so a route guard does not send a deep link to the login page before
+  the restore has decided.
+- `package:fabitus_cognito_auth/testing.dart`: `FakeCognito`, `fakeSession` and
+  `fakeJwt`, to test an `AuthCubit` and the pages around it without a user pool.
+
 ## 0.1.0
 
 Initial release, generalised from the auth module of the DMB Slicer frontend.

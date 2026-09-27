@@ -16,9 +16,10 @@ await auth.signIn('jane@fabit.us', password);
 auth.state; // AuthAuthenticated(AuthSession(user: jane, expiresAt: ...))
 ```
 
-Pure Dart, and it paints nothing: the login form stays yours. Attaching the
-token to requests is the job of a transport adapter -
-[`fabitus_cognito_auth_dio`](../fabitus_cognito_auth_dio) for Dio.
+Pure Dart, and it paints nothing. Attaching the token to requests is the job
+of a transport adapter - [`fabitus_cognito_auth_dio`](../fabitus_cognito_auth_dio)
+for Dio - and the route guard and headless login forms live in
+[`fabitus_cognito_auth_flutter`](../fabitus_cognito_auth_flutter).
 
 ## Installation
 
@@ -90,22 +91,19 @@ token Cognito rejects ends in `AuthUnauthenticated` with
 `AuthFailure.sessionExpired`. Offline, an expired session is restored as it is
 and refreshed by the first request once the network is back.
 
-## The login page
+## The login page and the route guard
 
-Call the methods, render the state:
+[`fabitus_cognito_auth_flutter`](../fabitus_cognito_auth_flutter) has both,
+without a pixel of design: headless `SignInForm` and `NewPasswordForm`, a
+`SignInFlow` switching between them, an `AuthGate`, and `AuthRedirect` with
+`AuthRefreshListenable` for go_router. Without it, render the state yourself:
 
 ```dart
 BlocBuilder<AuthCubit, AuthState>(
   builder: (context, state) => switch (state) {
-    AuthInitial() || AuthInProgress() => const Center(child: CircularProgressIndicator()),
-    AuthUnauthenticated(:final error) => LoginForm(
-      error: error == null ? null : describe(error.failure),
-      onSubmit: (username, password) => context.read<AuthCubit>().signIn(username, password),
-    ),
-    AuthNewPasswordRequired(:final error) => NewPasswordForm(
-      error: error == null ? null : describe(error.failure),
-      onSubmit: (password) => context.read<AuthCubit>().submitNewPassword(password),
-    ),
+    AuthInitial() || AuthInProgress(step: AuthStep.restore) => const Splash(),
+    AuthNewPasswordRequired() || AuthInProgress(step: AuthStep.newPassword) => const NewPasswordForm(),
+    AuthUnauthenticated() || AuthInProgress() => const LoginForm(),
     AuthAuthenticated() => const SizedBox.shrink(), // the router takes over
   },
 );
@@ -128,42 +126,6 @@ String describe(AuthFailure failure) => switch (failure) {
 
 A wrong password and an unknown user are both `invalidCredentials`, so the form
 cannot be used to find out who has an account.
-
-## The route guard
-
-Redirect on the state, and have the router re-evaluate whenever it changes -
-which also covers a session that ends on its own, mid use:
-
-```dart
-GoRouter(
-  refreshListenable: StreamListenable(auth.stream),
-  redirect: (context, state) {
-    final signedIn = auth.state.isAuthenticated;
-    final atLogin = state.matchedLocation == '/login';
-    if (!signedIn && !atLogin) return '/login';
-    if (signedIn && atLogin) return '/';
-    return null;
-  },
-  routes: [...],
-);
-
-/// Turns a stream into the Listenable go_router wants.
-class StreamListenable extends ChangeNotifier {
-  StreamListenable(Stream<Object?> stream) : _subscription = stream.listen((_) => notifyListeners());
-
-  final StreamSubscription<Object?> _subscription;
-
-  @override
-  void dispose() {
-    _subscription.cancel();
-    super.dispose();
-  }
-}
-```
-
-Because `restore` ran before `runApp`, the guard never sees `AuthInitial`. If
-you restore later - behind a splash screen - check `auth.state.isRestored`
-before redirecting.
 
 ## The new password challenge
 
@@ -276,6 +238,24 @@ your security requirements ask for it:
 CognitoAuthClient(userPoolId: ..., clientId: ..., authFlow: CognitoAuthFlow.srp);
 ```
 
+## Testing
+
+`package:fabitus_cognito_auth/testing.dart` answers Cognito's protocol in
+memory, so an `AuthCubit` - and the login page or route guard around it - runs in
+a test without a user pool:
+
+```dart
+final cognito = FakeCognito()
+  ..initiateAuth = (_) => FakeCognito.authenticated(fakeSession('jane', groups: ['admin']));
+final auth = AuthCubit(cognito.client());
+
+await auth.signIn('jane', 'secret');
+expect(auth.state.sessionOrNull?.user.groups, ['admin']);
+```
+
+`FakeCognito.newPasswordChallenge()` and `FakeCognito.error('NotAuthorizedException', ...)`
+cover the other paths; `cognito.calls` records what was sent.
+
 ## Not covered
 
 MFA and custom challenges end in `AuthFailure.unsupportedChallenge`. Sign up,
@@ -309,6 +289,7 @@ persisted before the switch survives it.
 | Package | Role |
 | --- | --- |
 | [`fabitus_cognito_auth_dio`](../fabitus_cognito_auth_dio) | attaches the token to Dio requests and refreshes it |
+| [`fabitus_cognito_auth_flutter`](../fabitus_cognito_auth_flutter) | route guard, auth gate and headless login forms |
 | [`fabitus_feature_modules`](../fabitus_feature_modules) | role based access; feed it `session.user.groups` |
 
 ## License

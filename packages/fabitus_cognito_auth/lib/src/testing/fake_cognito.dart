@@ -1,17 +1,16 @@
 import 'dart:convert';
 
-import 'package:fabitus_cognito_auth/fabitus_cognito_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-/// A user pool id in the format Cognito uses; the region is read from it.
-const userPoolId = 'eu-central-1_TestPool1';
-
-/// The app client id the fake expects.
-const clientId = 'test-client-id';
+import '../auth_session.dart';
+import '../cognito_auth_client.dart';
 
 /// Builds an unsigned JWT carrying [claims], expiring at [expiresAt].
-String jwt(Map<String, dynamic> claims, {required DateTime expiresAt}) {
+///
+/// Good enough for everything on the client side, which reads tokens without
+/// verifying them.
+String fakeJwt(Map<String, dynamic> claims, {required DateTime expiresAt}) {
   String part(Object value) => base64Url.encode(utf8.encode(json.encode(value))).replaceAll('=', '');
   return [
     part({'alg': 'none'}),
@@ -21,8 +20,11 @@ String jwt(Map<String, dynamic> claims, {required DateTime expiresAt}) {
 }
 
 /// A session for [username], expiring [validFor] from now, with the refresh
-/// token [refreshToken].
-AuthSession sessionFor(
+/// token [refreshToken] and the Cognito [groups].
+///
+/// The id token carries `sub`, `cognito:username`, `email` (`<username>@fabit.us`)
+/// and `cognito:groups`.
+AuthSession fakeSession(
   String username, {
   Duration validFor = const Duration(hours: 1),
   String refreshToken = 'refresh-1',
@@ -30,13 +32,13 @@ AuthSession sessionFor(
 }) {
   final expiresAt = DateTime.now().add(validFor);
   return AuthSession(
-    idToken: jwt({
+    idToken: fakeJwt({
       'sub': 'sub-$username',
       'cognito:username': username,
       'email': '$username@fabit.us',
       'cognito:groups': groups,
     }, expiresAt: expiresAt),
-    accessToken: jwt({'sub': 'sub-$username', 'username': username}, expiresAt: expiresAt),
+    accessToken: fakeJwt({'sub': 'sub-$username', 'username': username}, expiresAt: expiresAt),
     refreshToken: refreshToken,
   );
 }
@@ -44,12 +46,28 @@ AuthSession sessionFor(
 /// One call the fake received.
 typedef CognitoCall = ({String operation, Map<String, dynamic> body});
 
-/// Answers Cognito's JSON protocol in memory.
+/// Answers Cognito's JSON protocol in memory, for testing code on top of
+/// [CognitoAuthClient] - an `AuthCubit`, a login page - without a user pool.
 ///
 /// Each operation is answered by the matching handler; an operation without a
-/// handler fails the test through an unknown error. Every call is recorded in
-/// [calls].
+/// handler is answered with an error, which surfaces as `AuthFailure.unknown`.
+/// Every call is recorded in [calls].
+///
+/// ```dart
+/// final cognito = FakeCognito()
+///   ..initiateAuth = (_) => FakeCognito.authenticated(fakeSession('jane'));
+/// final auth = AuthCubit(cognito.client());
+///
+/// await auth.signIn('jane', 'secret');
+/// expect(auth.state.isAuthenticated, isTrue);
+/// ```
 class FakeCognito {
+  /// A user pool id in the format Cognito uses; the region is read from it.
+  static const userPoolId = 'eu-central-1_TestPool1';
+
+  /// The app client id of [client].
+  static const clientId = 'test-client-id';
+
   /// Handles `InitiateAuth`, for both sign in and refresh.
   http.Response Function(Map<String, dynamic> body)? initiateAuth;
 
@@ -68,7 +86,7 @@ class FakeCognito {
   /// The operations received, in order.
   List<String> get operations => [for (final call in calls) call.operation];
 
-  /// The HTTP client to hand to [CognitoAuthClient].
+  /// The HTTP client behind [client], for a [CognitoAuthClient] of your own.
   late final http.Client httpClient = MockClient((request) async {
     final operation = request.headers['X-Amz-Target']!.split('.').last;
     final body = json.decode(request.body) as Map<String, dynamic>;
