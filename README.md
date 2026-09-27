@@ -10,6 +10,7 @@ dependency resolution and one `pubspec.lock` at the repo root.
 | --- | --- |
 | [`fabitus_cognito_auth`](packages/fabitus_cognito_auth) | Username and password login against an AWS Cognito user pool: session restore, token refresh, the new password challenge. |
 | [`fabitus_cognito_auth_dio`](packages/fabitus_cognito_auth_dio) | Dio interceptor for `fabitus_cognito_auth`: attaches the token, refreshes it, retries once on 401. |
+| [`fabitus_cognito_auth_flutter`](packages/fabitus_cognito_auth_flutter) | Route guard, auth gate and headless sign in and new password forms for `fabitus_cognito_auth`. |
 | [`fabitus_crud_api`](packages/fabitus_crud_api) | Spring Data style CRUD repositories, pagination and error handling, with in-memory, key-value and remote implementations. |
 | [`fabitus_crud_api_bloc`](packages/fabitus_crud_api_bloc) | Cubits and widgets for driving `fabitus_crud_api` from Flutter: load, paginate, edit. |
 | [`fabitus_crud_api_dio`](packages/fabitus_crud_api_dio) | Dio adapter for `fabitus_crud_api`: a ready made `CrudErrorMapper`. |
@@ -54,7 +55,9 @@ view or form layer paints, so your design system stays yours.
 
 `fabitus_cognito_auth` stands apart: login against a Cognito user pool for a
 backend behind an API Gateway Cognito authorizer, pure Dart and without a login
-form of its own. `fabitus_cognito_auth_dio` puts its token on your Dio requests.
+form of its own. `fabitus_cognito_auth_dio` puts its token on your Dio requests,
+and `fabitus_cognito_auth_flutter` adds the route guard and the login forms -
+headless, like the view and form packages.
 
 ## Getting started
 

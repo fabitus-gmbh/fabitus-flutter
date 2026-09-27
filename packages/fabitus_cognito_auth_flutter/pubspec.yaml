@@ -1,0 +1,38 @@
+name: fabitus_cognito_auth_flutter
+description: >-
+  Flutter building blocks for fabitus_cognito_auth: a route guard, an auth gate
+  and headless sign in and new password forms. Owns the wiring, leaves every
+  visual decision to you.
+version: 0.1.0
+repository: https://github.com/fabitus-gmbh/fabitus-flutter
+issue_tracker: https://github.com/fabitus-gmbh/fabitus-flutter/issues
+
+# Depends on its sibling by path, which pub.dev does not accept. That is fine
+# for the git dependency this repo is consumed through - pub resolves the path
+# inside the clone. Publishing to pub.dev would mean a version constraint here.
+publish_to: none
+
+topics:
+  - cognito
+  - authentication
+  - forms
+  - routing
+
+# Resolved together with the other packages of the workspace root.
+resolution: workspace
+
+environment:
+  sdk: ^3.9.0
+  flutter: ">=3.24.0"
+
+dependencies:
+  fabitus_cognito_auth:
+    path: ../fabitus_cognito_auth
+  flutter:
+    sdk: flutter
+  flutter_bloc: ^9.1.1
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter

@@ -15,6 +15,7 @@ workspace:
   - packages/fabitus_crud_api_views
   - packages/fabitus_cognito_auth
   - packages/fabitus_cognito_auth_dio
+  - packages/fabitus_cognito_auth_flutter
   - packages/fabitus_feature_modules
   - packages/fabitus_problem_details
 
