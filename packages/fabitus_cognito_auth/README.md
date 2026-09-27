@@ -29,6 +29,7 @@ dependencies:
     git:
       url: https://github.com/fabitus-gmbh/fabitus-flutter.git
       path: packages/fabitus_cognito_auth
+      ref: <commit or tag> # the same for every fabitus package, see the repo README
   fabitus_cognito_auth_dio: # if you use Dio, see its README
 ```
 
