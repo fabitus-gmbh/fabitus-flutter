@@ -59,7 +59,33 @@ form of its own. `fabitus_cognito_auth_dio` puts its token on your Dio requests,
 and `fabitus_cognito_auth_flutter` adds the route guard and the login forms -
 headless, like the view and form packages.
 
-## Getting started
+## Using the packages in an app
+
+The packages are consumed as git dependencies. When an app uses more than one,
+give them all the **same `ref`** - a commit or a tag:
+
+```yaml
+dependencies:
+  fabitus_cognito_auth:
+    git:
+      url: https://github.com/fabitus-gmbh/fabitus-flutter.git
+      path: packages/fabitus_cognito_auth
+      ref: 9df6b79593c22b0f77852870aaa1bcdd3f5793f3
+  fabitus_cognito_auth_flutter:
+    git:
+      url: https://github.com/fabitus-gmbh/fabitus-flutter.git
+      path: packages/fabitus_cognito_auth_flutter
+      ref: 9df6b79593c22b0f77852870aaa1bcdd3f5793f3
+```
+
+The packages depend on each other by path, and pub resolves those paths inside
+the checkout of the package that declares them. Two packages at different refs -
+or one pinned and one left at the default branch - would bring in two different
+copies of the shared package, which pub refuses with *"… from git is
+forbidden"*. One ref for all of them avoids that, and makes an upgrade a single
+search and replace.
+
+
 
 Requires Flutter 3.24 or newer (for the Dart 3.9 SDK it bundles). One package
 depends on Flutter, so the workspace resolves through the Flutter SDK.
