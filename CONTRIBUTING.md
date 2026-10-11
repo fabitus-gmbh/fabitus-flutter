@@ -50,6 +50,13 @@ which makes the **whole workspace** resolve through the Flutter SDK: use
 Tests follow the package: `dart test` for a pure Dart one, `flutter test` for a
 Flutter one. CI picks per package by looking for a `flutter:` dependency.
 
+CI runs the Flutter version pinned in `.github/workflows/ci.yaml`. Use the same
+one locally: `pubspec.lock` depends on it, because Flutter pins the versions of
+`flutter_test`'s dependencies, and CI fails when `flutter pub get` changes a
+tracked file. To move to a newer Flutter, upgrade locally, run
+`flutter pub get`, and commit the new pin together with the updated
+`pubspec.lock` and whatever else the tool rewrote.
+
 ## Workflow
 
 ```sh
