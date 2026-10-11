@@ -160,6 +160,74 @@ void main() {
       expect(Page<int>.fromJson(const {}, toInt).content, isEmpty);
     });
 
+    test('a body without a cursor and without offset keys is the last cursor page', () {
+      final page = Page<int>.fromJson(const {
+        'numberOfElements': 2,
+        'content': [1, 2],
+      }, toInt);
+
+      expect(page, isA<CursorPage<int>>());
+      expect(page.content, [1, 2]);
+      expect(page.hasNext, isFalse);
+      expect(page.nextPageRequest(const CursorPageRequest(size: 2, cursor: 'abc')), isNull);
+    });
+
+    test('an empty body with only a count is the last cursor page', () {
+      final page = Page<int>.fromJson(const {'numberOfElements': 0}, toInt);
+
+      expect(page, isA<CursorPage<int>>());
+      expect(page.content, isEmpty);
+      expect(page.hasNext, isFalse);
+    });
+
+    test('a cursor page with a token next to a count has a next page', () {
+      final page = Page<int>.fromJson(const {
+        'numberOfElements': 2,
+        'content': [1, 2],
+        'nextPageToken': 'abc',
+      }, toInt);
+
+      expect(page, isA<CursorPage<int>>());
+      expect(page.hasNext, isTrue);
+      expect((page.nextPageRequest(const CursorPageRequest(size: 2))! as CursorPageRequest).cursor, 'abc');
+    });
+
+    test('any offset key keeps a body an offset page', () {
+      const offsetBodies = <Map<String, dynamic>>[
+        {'page': 0},
+        {'number': 0},
+        {'size': 2},
+        {'limit': 2},
+        {'offset': 0},
+        {'totalElements': 2},
+        {'totalSize': 2},
+        {'total': 2},
+        {'totalPages': 1},
+      ];
+      for (final body in offsetBodies) {
+        expect(
+          Page<int>.fromJson({
+            ...body,
+            'content': [1, 2],
+          }, toInt),
+          isA<OffsetPage<int>>(),
+          reason: '$body',
+        );
+      }
+    });
+
+    test('a full Spring Data page without a total still has a next page', () {
+      final page = Page<int>.fromJson(const {
+        'content': [1, 2],
+        'number': 0,
+        'size': 2,
+        'numberOfElements': 2,
+      }, toInt);
+
+      expect(page, isA<OffsetPage<int>>());
+      expect(page.hasNext, isTrue);
+    });
+
     test('round trips through toJson', () {
       const page = OffsetPage<int>(content: [1, 2], page: 1, size: 2, totalElements: 5);
 
