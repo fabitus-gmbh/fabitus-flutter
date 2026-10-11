@@ -693,8 +693,11 @@ into a compile time question.
 
 **Why is `fromJson` hand written?** The parsing is deliberately tolerant:
 `Page` accepts `content`, `items` or `data` and picks its variant from the keys
-that are present. `json_serializable` cannot express that, so these types use
-freezed for equality and `copyWith` only, with
+that are present - a cursor key makes a `CursorPage`, a page index, size or
+total an `OffsetPage`, and a body with neither is the last `CursorPage`, which
+is what a backend that drops null fields sends instead of
+`"nextPageToken": null`. `json_serializable` cannot express that, so these
+types use freezed for equality and `copyWith` only, with
 `@Freezed(fromJson: false, toJson: false)`.
 
 **Why is the error *format* not in this package?** For the same reason `dio` is

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.1
+
+- `Page.fromJson` reads a body with neither a cursor key nor an offset key
+  (`page`, `number`, `size`, `limit`, `offset`, `totalElements`, `totalSize`,
+  `total`, `totalPages`) as the last `CursorPage`. Backends that drop null
+  fields omit `nextPageToken` on the last page, and such a body used to become
+  an `OffsetPage` whose `hasNext` was `true` whenever it held anything, so a
+  consumer kept asking for more. Bodies with any offset key parse as before.
+
 ## 0.1.0
 
 Initial release.

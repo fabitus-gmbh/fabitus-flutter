@@ -47,16 +47,36 @@ sealed class Page<T> with _$Page<T> {
 
   const Page._();
 
+  static const _cursorKeys = ['nextCursor', 'nextPageToken', 'cursor'];
+
+  static const _offsetKeys = [
+    'page',
+    'number',
+    'size',
+    'limit',
+    'offset',
+    'totalElements',
+    'totalSize',
+    'total',
+    'totalPages',
+  ];
+
   /// Reads a page from a decoded JSON body.
   ///
   /// The shape is detected from the keys that are present: a body carrying
-  /// `cursor`, `nextCursor` or `nextPageToken` becomes a [CursorPage], anything
-  /// else an [OffsetPage]. Both variants accept `content`, `items` or `data`
-  /// for the element list, so Spring Data and hand rolled backends both work.
+  /// `cursor`, `nextCursor` or `nextPageToken` becomes a [CursorPage], one
+  /// carrying a page index, a size or a total (`page`, `number`, `size`,
+  /// `limit`, `offset`, `totalElements`, `totalSize`, `total`, `totalPages`) an
+  /// [OffsetPage]. A body with neither becomes the last [CursorPage]: backends
+  /// that drop null fields omit the cursor on the last page instead of sending
+  /// `null`, and such a body gives no reason to ask for more.
+  ///
+  /// Both variants accept `content`, `items` or `data` for the element list, so
+  /// Spring Data and hand rolled backends both work; a missing list is empty.
   factory Page.fromJson(Map<String, dynamic> json, T Function(Object? json) fromJsonT) {
     final rawContent = json['content'] ?? json['items'] ?? json['data'];
     final content = rawContent is List ? rawContent.map(fromJsonT).toList(growable: false) : <T>[];
-    if (json.containsKey('nextCursor') || json.containsKey('nextPageToken') || json.containsKey('cursor')) {
+    if (_cursorKeys.any(json.containsKey) || !_offsetKeys.any(json.containsKey)) {
       return CursorPage<T>(
         content: content,
         nextCursor: (json['nextCursor'] ?? json['nextPageToken'] ?? json['cursor']) as String?,
