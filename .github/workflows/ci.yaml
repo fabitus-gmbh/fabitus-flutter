@@ -17,9 +17,14 @@ jobs:
 
       # One package depends on Flutter, which makes the whole workspace resolve
       # through the Flutter SDK. The Dart SDK it bundles serves format/analyze.
+      # Pinned to the version pubspec.lock was resolved with: another Flutter
+      # pins other versions of flutter_test's dependencies, and a newer one also
+      # rewrites the Flutter packages' analysis_options.yaml, so `flutter pub get`
+      # alone would dirty the tree and fail the generated code check below.
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.44.4
           cache: true
 
       # A single resolve for the whole workspace.
