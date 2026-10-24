@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.2.0
+
+- The repository contract is cut into fragments: `FindByIdRepository`,
+  `ListRepository`, `PagingRepository`, `CreateRepository`, `UpdateRepository`,
+  `SaveRepository` and `DeleteRepository`, plus `EntityRepository` (find, save,
+  delete - what an entity screen needs). `ReadCrudRepository`, `CrudRepository`
+  and `PagingCrudRepository` are now compositions of them with the same member
+  set as before, so existing implementations and callers are unaffected; only a
+  consumer file with its own type of one of the new names gains a clash, which
+  is why this is 0.2.0 and not 0.1.2. A
+  repository over a backend with less than full CRUD implements only the
+  fragments the backend has, instead of failing the rest with
+  `CrudUnsupportedException`.
+- Mixins for such partial repositories: `GuardedRepository` carries `guard` and
+  the error mapper without the full contract, `SaveViaCreateAndUpdate`,
+  `DeleteViaDeleteById` and `ExistsViaFindById` derive the derived operations
+  per fragment. `BaseCrudRepository` is unchanged and stays the base for full
+  CRUD implementations.
+
 ## 0.1.1
 
 - `Page.fromJson` reads a body with neither a cursor key nor an offset key

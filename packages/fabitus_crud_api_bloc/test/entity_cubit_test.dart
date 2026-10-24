@@ -237,4 +237,54 @@ void main() {
       expect(state.isDirty, isTrue);
     });
   });
+
+  group('with a partial repository', () {
+    test('load, save and delete need no full CrudRepository', () async {
+      final partial = EntityOnlyRepository();
+      final cubit = EntityCubit<Todo, String>(partial);
+      addTearDown(cubit.close);
+
+      await cubit.load('1');
+      expect(cubit.state.entity?.title, 'Stored');
+
+      cubit.edit((todo) => todo.copyWith(title: 'Edited'));
+      await cubit.save();
+      expect(partial.todos['1']?.title, 'Edited');
+
+      await cubit.delete();
+      expect(cubit.state.isDeleted, isTrue);
+      expect(partial.todos, isEmpty);
+    });
+  });
+}
+
+/// Implements only what [EntityCubit] needs - the backend behind it has no
+/// list, page or create-from-entity endpoint.
+class EntityOnlyRepository
+    with ExistsViaFindById<Todo, String>, DeleteViaDeleteById<Todo, String>
+    implements EntityRepository<Todo, String> {
+  /// The stored todos, exposed so tests can assert on them.
+  final Map<String, Todo> todos = {'1': const Todo(id: '1', title: 'Stored')};
+
+  @override
+  Future<CrudResult<Todo>> findById(String id) async {
+    final todo = todos[id];
+    if (todo == null) {
+      return CrudFailure<Todo>(CrudNotFoundException('No Todo with id $id'), StackTrace.current);
+    }
+    return CrudSuccess<Todo>(todo);
+  }
+
+  @override
+  Future<CrudResult<Todo>> save(Todo entity) async {
+    final saved = entity.id == null ? entity.copyWith(id: '${todos.length + 1}') : entity;
+    todos[saved.id!] = saved;
+    return CrudSuccess<Todo>(saved);
+  }
+
+  @override
+  Future<CrudResult<void>> deleteById(String id) async {
+    todos.remove(id);
+    return const CrudSuccess<void>(null);
+  }
 }

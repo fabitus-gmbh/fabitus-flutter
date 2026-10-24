@@ -233,7 +233,7 @@ FilledButton(
 ```
 
 `save()` creates when the draft has no id and updates when it has one - it goes
-through `CrudRepository.save`, so the form does not care which. `select(entity)`
+through `EntityRepository.save`, so the form does not care which. `select(entity)`
 takes an entity the list already has, without a read.
 
 Closing the screen when the write went through:
