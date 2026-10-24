@@ -1,12 +1,10 @@
-import 'dart:async';
-
 import '../core/crud_entity.dart';
-import '../core/logging.dart';
 import '../error/crud_result.dart';
 import '../paging/page.dart';
 import '../paging/page_request.dart';
 import '../repository/crud_repository.dart';
 import 'crud_event.dart';
+import 'crud_event_hub.dart';
 import 'crud_event_listener.dart';
 
 /// A [CrudRepository] that announces every successful write.
@@ -37,49 +35,35 @@ import 'crud_event_listener.dart';
 class CrudService<T extends CrudEntity<ID>, ID extends Object> implements CrudRepository<T, ID> {
   /// Wraps [delegate] and publishes its writes to [events] and to [listeners].
   CrudService(this.delegate, {Iterable<CrudEventListener<T>> listeners = const []})
-    : listeners = List<CrudEventListener<T>>.unmodifiable(listeners);
+    : _hub = CrudEventHub<T>(listeners: listeners);
 
   /// The repository that does the actual work.
   final CrudRepository<T, ID> delegate;
+
+  /// Publishes what this service writes; the service is this plus delegation.
+  final CrudEventHub<T> _hub;
 
   /// The listeners this service pushes every event to, in order.
   ///
   /// Fixed for the lifetime of the service; to attach and detach at runtime,
   /// listen to [events] instead and cancel the subscription.
-  final List<CrudEventListener<T>> listeners;
-
-  final StreamController<CrudEvent<T>> _events = StreamController<CrudEvent<T>>.broadcast();
+  List<CrudEventListener<T>> get listeners => _hub.listeners;
 
   /// Writes performed through this service, in the order they succeeded.
   ///
   /// The stream is a broadcast stream, so late listeners miss earlier events.
-  Stream<CrudEvent<T>> get events => _events.stream;
+  Stream<CrudEvent<T>> get events => _hub.events;
 
   /// Whether [dispose] has been called.
-  bool get isDisposed => _events.isClosed;
+  bool get isDisposed => _hub.isDisposed;
 
   /// Stops publishing and closes [events]. Call this when the service is no
   /// longer needed.
   ///
   /// Writes still work afterwards, they are simply no longer announced.
-  Future<void> dispose() => _events.close();
+  Future<void> dispose() => _hub.dispose();
 
-  /// Publishes [event] to [events] and to every entry of [listeners].
-  ///
-  /// A listener that throws is logged and skipped: the write it describes has
-  /// already succeeded, so a broken listener must not fail the operation, and
-  /// it must not keep the remaining listeners from being told.
-  void _emit(CrudEvent<T> event) {
-    if (isDisposed) return;
-    _events.add(event);
-    for (final listener in listeners) {
-      try {
-        listener.onCrudEvent(event);
-      } catch (error, stackTrace) {
-        crudLogger.severe('${listener.runtimeType} failed to handle $event', error, stackTrace);
-      }
-    }
-  }
+  void _emit(CrudEvent<T> event) => _hub.announce(event);
 
   @override
   Future<CrudResult<T>> findById(ID id) => delegate.findById(id);

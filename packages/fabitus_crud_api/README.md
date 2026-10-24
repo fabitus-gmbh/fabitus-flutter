@@ -584,6 +584,31 @@ change.
 
 Failed operations emit nothing - the caller still gets the `CrudFailure`.
 
+### A hub without a service
+
+`CrudService` only wraps a full `CrudRepository`. Two kinds of writes never
+pass through one: a repository built from the fragments (guide 9), and a write
+that is no repository call at all - an upload against presigned URLs, say,
+that ends in a new entity. For those, announce on a `CrudEventHub`, which is
+the publishing half of a service on its own:
+
+```dart
+final fileEvents = CrudEventHub<FileItem>();
+
+// Where the upload completes:
+fileEvents.announce(CrudEvent.created(file));
+
+// Where the list lives:
+CrudPaginationProvider<FileItem, String>(
+  refreshOn: fileEvents.events,
+  // ...
+);
+```
+
+The hub carries the same guarantees as a service: events go to the stream and
+to the listeners handed in at construction, a throwing listener is logged and
+skipped, and announcing after `dispose` is dropped.
+
 ## Guide 7: adding your own queries
 
 Filters and search are application specific, so extend the repository and use
@@ -730,6 +755,7 @@ nothing for it, because `CrudRepository` is a composition of them.
 | `CrudApi`, `PagingCrudApi` | the retrofit client contract |
 | `RemoteCrudRepository`, `RemotePagingCrudRepository` | backend backed |
 | `CrudService`, `PagingCrudService` | repository plus event stream and listeners |
+| `CrudEventHub` | the event stream without the repository, for writes no service sees |
 | `CrudEventListener` | the seam for pushing events into an event bus, analytics or a cache |
 | `CrudEvent` → `CrudEntityCreated`, `CrudEntityUpdated`, `CrudEntityDeleted` | what happened |
 
