@@ -31,5 +31,6 @@ export 'src/repository/remote_crud_repository.dart';
 export 'src/repository/repository_fragment.dart';
 export 'src/repository/repository_mixins.dart';
 export 'src/service/crud_event.dart';
+export 'src/service/crud_event_hub.dart';
 export 'src/service/crud_event_listener.dart';
 export 'src/service/crud_service.dart';

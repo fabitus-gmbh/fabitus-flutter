@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0
+
+- `CrudEventHub`: the publishing half of `CrudService` as a type of its own -
+  the broadcast `events` stream, the listeners, and the guarantee that a
+  throwing listener is logged and skipped. For announcing writes a service
+  cannot see: a repository built from the fragments, or a write that is no
+  repository call at all, such as an upload that ends in a new entity. Point
+  `CrudPaginationProvider.refreshOn` at `hub.events` and lists reread
+  themselves. `CrudService` now publishes through a hub internally; its API is
+  unchanged (`listeners` turned from a field into a getter), but overriding
+  `listeners` or `isDisposed` in a subclass no longer affects what is
+  published.
+
 ## 0.2.0
 
 - The repository contract is cut into fragments: `FindByIdRepository`,
