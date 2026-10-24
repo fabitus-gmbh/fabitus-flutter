@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fabitus_crud_api/fabitus_crud_api.dart';
 import 'package:fabitus_crud_api_bloc/fabitus_crud_api_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -338,6 +340,217 @@ void main() {
 
       expect(failed.copyWith(status: PaginationStatus.loading).error, isNull);
       expect(failed.copyWith(status: PaginationStatus.loading, keepError: true).error, error);
+    });
+  });
+
+  group('events', () {
+    test('a delete on a cursor page removes in place and keeps the cursor', () async {
+      final cubit = build(cursor: true);
+      await cubit.loadFirstPage();
+      final reads = repository.calls.length;
+
+      cubit.apply(const CrudEvent<Todo>.deleted('0'));
+      await pumpEventQueue();
+
+      expect(cubit.state.items.map((todo) => todo.id), ['1']);
+      expect((cubit.state.page! as CursorPage<Todo>).nextCursor, '2');
+      expect(repository.calls, hasLength(reads));
+    });
+
+    test('a delete on a completely held offset collection removes in place', () async {
+      final cubit = build(total: 4);
+      await cubit.loadFirstPage();
+      await cubit.nextPage();
+      final reads = repository.calls.length;
+
+      cubit.apply(const CrudEvent<Todo>.deleted('0'));
+      await pumpEventQueue();
+
+      expect(cubit.state.allItems.map((todo) => todo.id), ['1', '2', '3']);
+      expect(repository.calls, hasLength(reads));
+    });
+
+    test('a delete lowers the total on every held page', () async {
+      final cubit = build(total: 4);
+      await cubit.loadFirstPage();
+      await cubit.nextPage();
+
+      cubit.apply(const CrudEvent<Todo>.deleted('0'));
+      await pumpEventQueue();
+
+      for (final page in cubit.state.pages) {
+        expect((page as OffsetPage<Todo>).totalElements, 3);
+      }
+    });
+
+    test('a delete on an offset collection with more pages on the server rereads', () async {
+      final cubit = build();
+      await cubit.loadFirstPage();
+      await repository.deleteById('1');
+      final reads = repository.calls.length;
+
+      cubit.apply(const CrudEvent<Todo>.deleted('1'));
+      await pumpEventQueue();
+
+      // Removed at once, then reread, so the next page skips nothing.
+      expect(repository.calls.length, reads + 1);
+      await cubit.nextPage();
+      expect(cubit.state.allItems.map((todo) => todo.id), ['0', '2', '3', '4']);
+    });
+
+    test('a delete for an id no held page shows changes nothing', () async {
+      final cubit = build();
+      await cubit.loadFirstPage();
+      final before = cubit.state;
+
+      cubit.apply(const CrudEvent<Todo>.deleted('99'));
+
+      expect(cubit.state, same(before));
+    });
+
+    test('an update replaces the entity in place without a read', () async {
+      final cubit = build();
+      await cubit.loadFirstPage();
+      final reads = repository.calls.length;
+
+      cubit.apply(const CrudEvent<Todo>.updated(Todo(id: '0', title: 'Renamed')));
+
+      expect(cubit.state.items.singleWhere((todo) => todo.id == '0').title, 'Renamed');
+      expect(repository.calls, hasLength(reads));
+    });
+
+    test('an update reaches an entity on another held page', () async {
+      final cubit = build();
+      await cubit.loadFirstPage();
+      await cubit.nextPage();
+
+      cubit.apply(const CrudEvent<Todo>.updated(Todo(id: '0', title: 'Renamed')));
+      cubit.goToPage(0);
+
+      expect(cubit.state.items.singleWhere((todo) => todo.id == '0').title, 'Renamed');
+    });
+
+    test('an update for an id no held page shows changes nothing', () async {
+      final cubit = build();
+      await cubit.loadFirstPage();
+      final before = cubit.state;
+
+      cubit.apply(const CrudEvent<Todo>.updated(Todo(id: '99', title: 'Elsewhere')));
+
+      expect(cubit.state, same(before));
+    });
+
+    test('an update keeps the error of a failed state', () async {
+      final cubit = build();
+      await cubit.loadFirstPage();
+      repository.nextError = const CrudServerException('down');
+      await cubit.nextPage();
+      final error = cubit.state.error;
+      expect(error, isNotNull);
+
+      cubit.apply(const CrudEvent<Todo>.updated(Todo(id: '0', title: 'Renamed')));
+
+      expect(cubit.state.error, error);
+    });
+
+    test('a create event rereads the first page', () async {
+      final cubit = build();
+      await cubit.loadFirstPage();
+      final reads = repository.calls.length;
+
+      cubit.apply(const CrudEvent<Todo>.created(Todo(id: '9', title: 'New')));
+      await pumpEventQueue();
+
+      expect(repository.calls.length, reads + 1);
+    });
+
+    test('a create event before the first load does nothing', () async {
+      final cubit = build();
+
+      cubit.apply(const CrudEvent<Todo>.created(Todo(id: '9', title: 'New')));
+      await pumpEventQueue();
+
+      expect(cubit.state.status, PaginationStatus.initial);
+      expect(repository.calls, isEmpty);
+    });
+
+    test('an event during an in-flight read ends in a reread', () async {
+      final gate = Completer<void>();
+      var reads = 0;
+      repository = FlakyTodoRepository(seededRepository(5));
+      final cubit = PaginationCubit<Todo, void>(
+        loadPage: (request, _) async {
+          reads++;
+          if (reads == 1) await gate.future;
+          return repository.findPage(request);
+        },
+        initialRequest: OffsetPageRequest(size: 2),
+        initialFilter: null,
+      );
+      addTearDown(cubit.close);
+
+      final first = cubit.loadFirstPage();
+      cubit.apply(const CrudEvent<Todo>.deleted('0'));
+      gate.complete();
+      await first;
+      await pumpEventQueue();
+
+      expect(reads, 2);
+    });
+
+    test('a delete for a T that is no CrudEntity uses idOf', () async {
+      final cubit = PaginationCubit<String, void>(
+        loadPage: (request, _) async => const CrudSuccess(CursorPage<String>(content: ['a', 'b'])),
+        initialRequest: const CursorPageRequest(size: 2),
+        initialFilter: null,
+        idOf: (item) => item,
+      );
+      addTearDown(cubit.close);
+      await cubit.loadFirstPage();
+
+      cubit.apply(const CrudEvent<String>.deleted('a'));
+
+      expect(cubit.state.items, ['b']);
+    });
+
+    test('removing the last item of a page keeps the page held', () async {
+      final cubit = build(total: 3);
+      await cubit.loadFirstPage();
+      await cubit.nextPage();
+      final reads = repository.calls.length;
+
+      cubit.apply(const CrudEvent<Todo>.deleted('2'));
+      await pumpEventQueue();
+
+      expect(cubit.state.pages, hasLength(2));
+      expect(cubit.state.items, isEmpty);
+      expect(repository.calls, hasLength(reads));
+    });
+
+    test('a watched hub drives apply until the cubit closes', () async {
+      final hub = CrudEventHub<Todo>();
+      addTearDown(hub.dispose);
+      repository = FlakyTodoRepository(seededRepository(4));
+      final cubit = PaginationCubit<Todo, void>(
+        loadPage: (request, _) => repository.findPage(request),
+        initialRequest: OffsetPageRequest(size: 2),
+        initialFilter: null,
+        watch: hub.events,
+      );
+      await cubit.loadFirstPage();
+      await cubit.nextPage();
+
+      hub.announce(const CrudEvent<Todo>.deleted('0'));
+      await pumpEventQueue();
+      expect(cubit.state.allItems.map((todo) => todo.id), ['1', '2', '3']);
+
+      // Still-held id: without the cancel in close this would emit on a
+      // closed cubit and fail with a StateError.
+      final before = cubit.state;
+      await cubit.close();
+      hub.announce(const CrudEvent<Todo>.deleted('1'));
+      await pumpEventQueue();
+      expect(cubit.state, same(before));
     });
   });
 }
