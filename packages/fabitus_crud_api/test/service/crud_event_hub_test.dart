@@ -69,7 +69,7 @@ void main() {
       given.clear();
 
       expect(hub.listeners, hasLength(1));
-      expect(() => hub.listeners.clear(), throwsUnsupportedError);
+      expect(hub.listeners.clear, throwsUnsupportedError);
     });
 
     test('an announcement after dispose is dropped', () async {
