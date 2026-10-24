@@ -28,6 +28,7 @@ whether it is served from a fake, from local storage or from your backend.
 - [Guide 6: services, events and dependency injection](#guide-6-services-events-and-dependency-injection)
 - [Guide 7: adding your own queries](#guide-7-adding-your-own-queries)
 - [Guide 8: testing](#guide-8-testing)
+- [Guide 9: a partial backend](#guide-9-a-partial-backend)
 - [API overview](#api-overview)
 - [Design notes](#design-notes)
 
@@ -658,6 +659,52 @@ Run the suite:
 dart test
 ```
 
+## Guide 9: a partial backend
+
+Not every backend is full CRUD: one may have no update endpoint, another no
+single-entity read. A repository over such a backend does not implement
+`CrudRepository` - it would have to fail the missing operations with
+`CrudUnsupportedException`, promising callers endpoints that do not exist.
+Instead it implements the fragments the backend has, and takes `guard` from
+`GuardedRepository` instead of `BaseCrudRepository`:
+
+```dart
+/// The backend can read one project, delete one and page through them.
+/// There is no update endpoint; creating goes through its own request type.
+class ProjectsRepository
+    with GuardedRepository, ExistsViaFindById<Project, String>, DeleteViaDeleteById<Project, String>
+    implements PagingRepository<Project, String> {
+  ProjectsRepository(this._api);
+
+  final ProjectsApi _api;
+
+  @override
+  CrudErrorMapper get errorMapper => const DioCrudErrorMapper();
+
+  @override
+  Future<CrudResult<Project>> findById(String id) => guard(() => _api.get(id));
+
+  @override
+  Future<CrudResult<void>> deleteById(String id) => guard(() => _api.delete(id));
+
+  @override
+  Future<CrudResult<Page<Project>>> findPage(PageRequest pageRequest) => guard(() => _api.page(pageRequest));
+
+  /// Not part of any fragment: the backend creates a project from a request
+  /// type of its own, so the method says so instead of taking an entity.
+  Future<CrudResult<Project>> create(CreateProjectRequest request) => guard(() => _api.create(request));
+}
+```
+
+`SaveViaCreateAndUpdate`, `DeleteViaDeleteById` and `ExistsViaFindById` derive
+the derived operations fragment by fragment, the way `BaseCrudRepository` does
+for the full contract. Operations the backend genuinely does not have simply do
+not exist on the type, and the compiler - not a runtime
+`CrudUnsupportedException` - tells a caller so.
+
+A full CRUD backend keeps using `BaseCrudRepository`; the fragments change
+nothing for it, because `CrudRepository` is a composition of them.
+
 ## API overview
 
 | Type | Purpose |
@@ -672,8 +719,10 @@ dart test
 | `Sort`, `SortOrder`, `SortDirection` | ordering |
 | `PageRequest` → `OffsetPageRequest`, `CursorPageRequest` | what to read |
 | `Page<T>` → `OffsetPage<T>`, `CursorPage<T>` | what came back |
-| `ReadCrudRepository`, `CrudRepository`, `PagingCrudRepository` | the contracts |
-| `BaseCrudRepository` | base class for your own implementations |
+| `ReadCrudRepository`, `CrudRepository`, `PagingCrudRepository` | the contracts, composed of the fragments |
+| `FindByIdRepository`, `ListRepository`, `PagingRepository`, `CreateRepository`, `UpdateRepository`, `SaveRepository`, `DeleteRepository`, `EntityRepository` | the fragments, for a backend with less than full CRUD |
+| `BaseCrudRepository` | base class for your own full CRUD implementations |
+| `GuardedRepository`, `SaveViaCreateAndUpdate`, `DeleteViaDeleteById`, `ExistsViaFindById` | mixins for partial repositories: `guard` and the derived operations, fragment by fragment |
 | `InMemoryCrudRepository` | map backed, for tests and prototypes |
 | `KeyValueStore`, `InMemoryKeyValueStore` | the local storage seam |
 | `sortEntities`, `pageOf`, `jsonPropertyAccessor` | in-memory sorting and slicing, for your own local repositories |

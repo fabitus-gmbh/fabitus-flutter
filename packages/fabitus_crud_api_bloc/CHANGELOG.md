@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0
+
+- `EntityCubit` takes an `EntityRepository` (find, save, delete) instead of a
+  full `CrudRepository`. Every `CrudRepository` is one, so call sites keep
+  working; a repository over a backend with less than full CRUD now qualifies
+  by implementing just those fragments. Code that uses `cubit.repository` as a
+  `CrudRepository` - reading `findAll` or `create` off it, or passing it on as
+  one - must keep its own typed reference. Needs `fabitus_crud_api` 0.2.0.
+
 ## 0.1.0
 
 Initial release. Generalised from the Toolbox's `core/bloc`, as cubits.

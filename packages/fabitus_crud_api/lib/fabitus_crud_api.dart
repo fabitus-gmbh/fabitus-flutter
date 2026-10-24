@@ -2,7 +2,9 @@
 ///
 /// The package is deliberately transport agnostic and free of code generation:
 /// it defines the contracts ([CrudEntity], [CrudRepository],
-/// [PagingCrudRepository], [CrudApi]), the value types they exchange
+/// [PagingCrudRepository], [CrudApi]), the fragments the repository contracts
+/// are composed of (such as [FindByIdRepository] and [DeleteRepository]), the
+/// value types they exchange
 /// ([CrudResult], [CrudException], [Page], [PageRequest], [Sort]) and three
 /// implementations - in memory, key-value backed and remote.
 ///
@@ -26,6 +28,8 @@ export 'src/repository/in_memory_crud_repository.dart';
 export 'src/repository/key_value_crud_repository.dart';
 export 'src/repository/key_value_store.dart';
 export 'src/repository/remote_crud_repository.dart';
+export 'src/repository/repository_fragment.dart';
+export 'src/repository/repository_mixins.dart';
 export 'src/service/crud_event.dart';
 export 'src/service/crud_event_listener.dart';
 export 'src/service/crud_service.dart';

@@ -3,8 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'entity_state.dart';
 
-/// Drives one entity through a [CrudRepository]: read it, edit it, save it,
+/// Drives one entity through an [EntityRepository]: read it, edit it, save it,
 /// delete it.
+///
+/// Every [CrudRepository] is an [EntityRepository], and a repository over a
+/// backend with less than full CRUD passes by implementing just the fragments
+/// the cubit needs.
 ///
 /// The methods are the API - `cubit.save()`, `cubit.delete()` - which is where a
 /// `Cubit` beats a `Bloc` most clearly here. The original of this was a `Bloc`
@@ -29,7 +33,7 @@ class EntityCubit<T extends CrudEntity<ID>, ID extends Object> extends Cubit<Ent
   EntityCubit(this.repository, {T? draft}) : super(EntityState<T>.initial(draft: draft));
 
   /// Where the entity is read from and written to.
-  final CrudRepository<T, ID> repository;
+  final EntityRepository<T, ID> repository;
 
   int _generation = 0;
 
