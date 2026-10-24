@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.0
+
+- `PaginationCubit` follows writes performed elsewhere: `apply(CrudEvent<T>)`
+  changes the held pages. A deleted entity leaves its page at once, and every
+  held total drops; cursor pages and completely held offset collections need
+  no read for that, any other offset collection is reread afterwards, because
+  the server-side shift would otherwise skip an entity or end the listing
+  early. An updated entity is replaced in place where a page holds it, keeping
+  its spot even when sort or filter would move it. A created one drops the
+  held pages and rereads the first page (and does nothing before the first
+  load). An event arriving while a page is being read ends in a reread. The
+  constructor takes `watch` (a `CrudEventHub.events` or `CrudService.events`;
+  the subscription ends with the cubit, stream errors are logged) and `idOf`
+  for a `T` that is no `CrudEntity`. `apply` is also the seam for server-sent
+  events, decoded into `CrudEvent`s.
+
 ## 0.2.0
 
 - `EntityCubit` takes an `EntityRepository` (find, save, delete) instead of a
