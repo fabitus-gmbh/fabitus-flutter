@@ -139,6 +139,39 @@ class FakeCognito {
     200,
   );
 
+  /// The EMAIL_OTP challenge Cognito answers a code request with.
+  ///
+  /// [username] is the internal user name Cognito resolved, left out when
+  /// `null`.
+  static http.Response emailCodeChallenge({
+    String destination = 'j***@f***',
+    String? username,
+    String session = 'otp-session',
+  }) => http.Response(
+    json.encode({
+      'ChallengeName': 'EMAIL_OTP',
+      'Session': session,
+      'ChallengeParameters': {
+        'CODE_DELIVERY_DELIVERY_MEDIUM': 'EMAIL',
+        'CODE_DELIVERY_DESTINATION': destination,
+        'USERNAME': ?username,
+      },
+    }),
+    200,
+  );
+
+  /// The SELECT_CHALLENGE answer Cognito gives when the preferred challenge is
+  /// not available, offering [available] instead.
+  static http.Response selectChallenge(List<String> available) => http.Response(
+    json.encode({
+      'ChallengeName': 'SELECT_CHALLENGE',
+      'Session': 'select-session',
+      'AvailableChallenges': available,
+      'ChallengeParameters': <String, dynamic>{},
+    }),
+    200,
+  );
+
   /// An error response of type [code].
   static http.Response error(String code, String message, {int status = 400}) =>
       http.Response(json.encode({'__type': code, 'message': message}), status);

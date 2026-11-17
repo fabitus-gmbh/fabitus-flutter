@@ -32,8 +32,17 @@ enum AuthFailure {
   invalidPassword,
 
   /// Too many attempts in a short time; Cognito throttles the user or the
-  /// client.
+  /// client. After too many wrong codes Cognito answers this or [codeExpired];
+  /// either way the user requests a new code.
   tooManyRequests,
+
+  /// The one-time code from the e-mail is wrong. With user existence errors
+  /// prevented in the pool, an address without an account ends here too.
+  invalidCode,
+
+  /// The one-time code, or the Cognito auth session it belongs to, ran out or
+  /// was used up - after too many wrong codes, for one. Request a new code.
+  codeExpired,
 
   /// Cognito could not be reached.
   network,
