@@ -13,6 +13,8 @@ import 'auth_session.dart';
 ///     return LoginForm(error: error?.failure);
 ///   case AuthNewPasswordRequired(:final error):
 ///     return NewPasswordForm(error: error?.failure);
+///   case AuthEmailCodeRequired(:final destination, :final error):
+///     return CodeForm(sentTo: destination, error: error?.failure);
 ///   case AuthAuthenticated(:final session):
 ///     return Text('Hello ${session.user.displayName}');
 /// }
@@ -29,7 +31,9 @@ sealed class AuthState {
 
   /// Why the last step failed, or `null` when it did not.
   AuthException? get errorOrNull => switch (this) {
-    AuthUnauthenticated(:final error) || AuthNewPasswordRequired(:final error) => error,
+    AuthUnauthenticated(:final error) ||
+    AuthNewPasswordRequired(:final error) ||
+    AuthEmailCodeRequired(:final error) => error,
     _ => null,
   };
 
@@ -71,9 +75,18 @@ enum AuthStep {
 
   /// `AuthCubit.submitNewPassword`.
   newPassword,
+
+  /// `AuthCubit.requestEmailCode`. The UI stays on the address form.
+  requestEmailCode,
+
+  /// `AuthCubit.submitEmailCode`. The UI stays on the code form.
+  submitEmailCode,
+
+  /// `AuthCubit.resendEmailCode`. The UI stays on the code form.
+  resendEmailCode,
 }
 
-/// A sign in, a new password or a session restore is on its way to Cognito.
+/// A sign in, a code, a new password or a session restore is on its way to Cognito.
 final class AuthInProgress extends AuthState {
   /// Creates the in progress state for [step].
   const AuthInProgress(this.step);
@@ -141,6 +154,41 @@ final class AuthNewPasswordRequired extends AuthState {
 
   @override
   String toString() => 'AuthNewPasswordRequired(requiredAttributes: $requiredAttributes, error: $error)';
+}
+
+/// Cognito sent a one-time code by e-mail and waits for it.
+///
+/// Answer with `AuthCubit.submitEmailCode`, ask for another code with
+/// `AuthCubit.resendEmailCode`, or go back to the address with
+/// `AuthCubit.cancelEmailCode`.
+final class AuthEmailCodeRequired extends AuthState {
+  /// Creates the state for the code sent to [username], with the [error] of the
+  /// last attempt if there was one.
+  const AuthEmailCodeRequired({required this.username, this.destination, this.error});
+
+  /// The address the code was requested for, as it was entered.
+  final String username;
+
+  /// Where Cognito sent the code, masked - such as `j***@f***` - or `null`
+  /// when it did not say.
+  final String? destination;
+
+  /// Why the last step failed - a wrong or expired code, a failed resend -
+  /// `null` right after a code was sent.
+  final AuthException? error;
+
+  @override
+  bool operator ==(Object other) =>
+      other is AuthEmailCodeRequired &&
+      other.username == username &&
+      other.destination == destination &&
+      other.error == error;
+
+  @override
+  int get hashCode => Object.hash(AuthEmailCodeRequired, username, destination, error);
+
+  @override
+  String toString() => 'AuthEmailCodeRequired(destination: $destination, error: $error)';
 }
 
 /// Somebody is signed in.

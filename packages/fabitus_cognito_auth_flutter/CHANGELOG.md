@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- `SignInFlow` takes an optional `emailCode` builder, shown while
+  `fabitus_cognito_auth` waits for a code it e-mailed (`SignInFlow.isEmailCodeStep`).
+  Without one the sign in form stays up, as before.
+
 ## 0.1.0
 
 Initial release.

@@ -45,7 +45,7 @@ each as `cubit:`.
 | `AuthRedirect` | The route guard: a plain function of the state and the location, for any router. |
 | `AuthRefreshListenable` | Tells the router to ask the guard again, when somebody signs in or out. |
 | `AuthGate` | One subtree while restoring, one signed out, one signed in. |
-| `SignInFlow` | Switches a login page between the sign in and the new password form. |
+| `SignInFlow` | Switches a login page between the sign in, the new password and, optionally, the e-mail code form. |
 | `SignInForm` | Owns username and password controllers; your builder gets `SignInFormData`. |
 | `NewPasswordForm` | Owns password and confirmation controllers and the checklist; your builder gets `NewPasswordFormData`. |
 
@@ -84,7 +84,10 @@ redirect hook works the same way.
 ## The login page
 
 `SignInFlow` shows the new password form while Cognito waits for a new password
-- including while the answer is on its way - and the sign in form otherwise:
+- including while the answer is on its way - and the sign in form otherwise.
+An optional `emailCode` builder takes over while the cubit waits for a code
+it e-mailed (`AuthCubit.requestEmailCode`); there is no ready-made code form
+yet:
 
 ```dart
 class LoginPage extends StatelessWidget {

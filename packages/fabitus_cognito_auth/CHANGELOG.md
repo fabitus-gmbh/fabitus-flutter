@@ -2,11 +2,15 @@
 
 ## 0.3.0
 
-- `CognitoAuthClient.requestEmailCode` and `submitEmailCode`: sign in with a
-  one-time code sent by e-mail (Cognito choice-based authentication, `USER_AUTH`
-  with the `EMAIL_OTP` challenge), next to the password.
-- **Breaking:** `AuthFailure` gained `invalidCode` and `codeExpired`. An
-  exhaustive `switch` over it has to add the new cases.
+- Sign in with a one-time code sent by e-mail (Cognito choice-based
+  authentication, `USER_AUTH` with the `EMAIL_OTP` challenge), next to the
+  password: `CognitoAuthClient.requestEmailCode` and `submitEmailCode`, and
+  `AuthCubit.requestEmailCode`, `submitEmailCode`, `resendEmailCode` and
+  `cancelEmailCode`. Refresh, restore and sign out work as before.
+- **Breaking:** `AuthState` gained `AuthEmailCodeRequired`, `AuthStep` gained
+  `requestEmailCode`, `submitEmailCode` and `resendEmailCode`, and `AuthFailure`
+  gained `invalidCode` and `codeExpired`. An exhaustive `switch` over any of them
+  has to add the new cases.
 - `FakeCognito.emailCodeChallenge` and `FakeCognito.selectChallenge`.
 
 ## 0.2.0

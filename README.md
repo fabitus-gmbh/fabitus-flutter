@@ -8,7 +8,7 @@ dependency resolution and one `pubspec.lock` at the repo root.
 
 | Package | Description |
 | --- | --- |
-| [`fabitus_cognito_auth`](packages/fabitus_cognito_auth) | Username and password login against an AWS Cognito user pool: session restore, token refresh, the new password challenge. |
+| [`fabitus_cognito_auth`](packages/fabitus_cognito_auth) | Password or e-mail code login against an AWS Cognito user pool: session restore, token refresh, the new password challenge. |
 | [`fabitus_cognito_auth_dio`](packages/fabitus_cognito_auth_dio) | Dio interceptor for `fabitus_cognito_auth`: attaches the token, refreshes it, retries once on 401. |
 | [`fabitus_cognito_auth_flutter`](packages/fabitus_cognito_auth_flutter) | Route guard, auth gate and headless sign in and new password forms for `fabitus_cognito_auth`. |
 | [`fabitus_crud_api`](packages/fabitus_crud_api) | Spring Data style CRUD repositories, pagination and error handling, with in-memory, key-value and remote implementations. |
