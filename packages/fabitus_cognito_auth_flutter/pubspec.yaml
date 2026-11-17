@@ -3,7 +3,7 @@ description: >-
   Flutter building blocks for fabitus_cognito_auth: a route guard, an auth gate
   and headless sign in and new password forms. Owns the wiring, leaves every
   visual decision to you.
-version: 0.1.0
+version: 0.2.0
 repository: https://github.com/fabitus-gmbh/fabitus-flutter
 issue_tracker: https://github.com/fabitus-gmbh/fabitus-flutter/issues
 

@@ -1,9 +1,9 @@
 # fabitus_cognito_auth
 
-Username and password login against an AWS Cognito user pool, for apps whose
-backend sits behind an API Gateway Cognito authorizer: sign in, the
-`NEW_PASSWORD_REQUIRED` challenge, session restore on start, token refresh and
-sign out.
+Password or e-mail code login against an AWS Cognito user pool, for apps whose
+backend sits behind an API Gateway Cognito authorizer: sign in, sign in with a
+one-time code by e-mail, the `NEW_PASSWORD_REQUIRED` challenge, session restore
+on start, token refresh and sign out.
 
 ```dart
 final auth = AuthCubit(
@@ -43,6 +43,7 @@ import 'package:fabitus_cognito_auth/fabitus_cognito_auth.dart';
   app is no secret, and the package does not send one.
 - The auth flows `ALLOW_USER_PASSWORD_AUTH` (or `ALLOW_USER_SRP_AUTH`, see
   [below](#srp-or-plain-password)) and `ALLOW_REFRESH_TOKEN_AUTH`.
+- For the [e-mail code](#sign-in-with-a-code-by-e-mail): see there.
 - An API Gateway **Cognito authorizer** on the same pool. Without OAuth scopes
   it validates the id token, which is what the Dio interceptor sends by
   default.
@@ -51,9 +52,9 @@ import 'package:fabitus_cognito_auth/fabitus_cognito_auth.dart';
 
 | Type | Job |
 | --- | --- |
-| `CognitoAuthClient` | Talks to Cognito. Stateless: signs in, answers the new password challenge, refreshes, revokes. |
+| `CognitoAuthClient` | Talks to Cognito. Stateless: signs in, requests and answers e-mail codes, answers the new password challenge, refreshes, revokes. |
 | `AuthCubit` | The app's session. Restores it on start, refreshes it, persists it, signs out. |
-| `AuthState` | Sealed: `AuthInitial`, `AuthInProgress`, `AuthUnauthenticated`, `AuthNewPasswordRequired`, `AuthAuthenticated`. |
+| `AuthState` | Sealed: `AuthInitial`, `AuthInProgress`, `AuthUnauthenticated`, `AuthNewPasswordRequired`, `AuthEmailCodeRequired`, `AuthAuthenticated`. |
 | `AuthSession` | The three tokens. The `user` and the expiry are read from them. |
 | `AuthUser` | Username, subject, email, groups and every other claim of the id token. |
 | `AuthSessionStore` | Where the session survives a restart. In memory by default. |
@@ -104,6 +105,8 @@ BlocBuilder<AuthCubit, AuthState>(
   builder: (context, state) => switch (state) {
     AuthInitial() || AuthInProgress(step: AuthStep.restore) => const Splash(),
     AuthNewPasswordRequired() || AuthInProgress(step: AuthStep.newPassword) => const NewPasswordForm(),
+    AuthEmailCodeRequired() ||
+    AuthInProgress(step: AuthStep.submitEmailCode || AuthStep.resendEmailCode) => const CodeForm(),
     AuthUnauthenticated() || AuthInProgress() => const LoginForm(),
     AuthAuthenticated() => const SizedBox.shrink(), // the router takes over
   },
@@ -117,6 +120,8 @@ you say it:
 String describe(AuthFailure failure) => switch (failure) {
   AuthFailure.missingCredentials => 'Bitte gib E-Mail und Passwort an.',
   AuthFailure.invalidCredentials => 'E-Mail oder Passwort ist ungültig.',
+  AuthFailure.invalidCode => 'Der Code ist nicht korrekt.',
+  AuthFailure.codeExpired => 'Der Code ist abgelaufen. Bitte fordere einen neuen an.',
   AuthFailure.invalidPassword => 'Das Passwort erfüllt nicht alle Anforderungen.',
   AuthFailure.sessionExpired => 'Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.',
   AuthFailure.tooManyRequests => 'Zu viele Versuche. Bitte warte einen Moment.',
@@ -127,6 +132,52 @@ String describe(AuthFailure failure) => switch (failure) {
 
 A wrong password and an unknown user are both `invalidCredentials`, so the form
 cannot be used to find out who has an account.
+
+## Sign in with a code by e-mail
+
+Instead of a password, the user enters an address and gets a one-time code by
+e-mail. The same `AuthCubit` handles both, and the session that results is
+stored, refreshed and signed out like any other:
+
+```dart
+await auth.requestEmailCode('jane@fabit.us');
+// AuthEmailCodeRequired(destination: 'j***@f***')
+
+await auth.submitEmailCode('123 456'); // whitespace is removed
+// AuthAuthenticated(...)
+```
+
+- `AuthInProgress(requestEmailCode)` keeps the address form up;
+  `AuthInProgress(submitEmailCode)` and `AuthInProgress(resendEmailCode)` keep
+  the code form up. `AuthEmailCodeRequired.destination` is the masked address
+  to show: "Wir haben einen Code an j***@f*** geschickt."
+- A failure while answering - `invalidCode`, `codeExpired`, `tooManyRequests` -
+  returns to `AuthEmailCodeRequired` with the error. Cognito allows a few wrong
+  codes per code. After too many, or once the Cognito auth session has run out,
+  the user needs `resendEmailCode()`; whether Cognito then answers
+  `tooManyRequests` or `codeExpired` has not been verified against a real pool.
+- `resendEmailCode()` asks for a new code - there is no separate resend call in
+  Cognito, it is a new sign in - and the old code is of no use. If it fails, the
+  old challenge stays.
+- `cancelEmailCode()` goes back to the address form. A failed request ends in
+  `AuthUnauthenticated` with the reason.
+- With `PreventUserExistenceErrors` enabled on the app client, an unknown
+  address looks like a wrong code, so the form cannot be used to find out who
+  has an account.
+- The challenge lives in memory; after a restart the user requests a new code.
+
+The user pool needs:
+
+- An app client with `ALLOW_USER_AUTH` and `ALLOW_REFRESH_TOKEN_AUTH`.
+- The Essentials or Plus tier, with `EMAIL_OTP` among the allowed first factors
+  of the sign-in policy.
+- Cognito sending e-mail through SES (`email_sending_account = DEVELOPER`); the
+  built-in sender is too limited for sign in codes.
+- `PreventUserExistenceErrors` set to `ENABLED` on the app client
+  (`prevent_user_existence_errors = "ENABLED"`). Without it, an unknown address
+  is reported as such.
+- No required MFA for these users. If the pool offers no e-mail code for a user,
+  the result is `AuthFailure.unsupportedChallenge`.
 
 ## The new password challenge
 
@@ -259,8 +310,9 @@ cover the other paths; `cognito.calls` records what was sent.
 
 ## Not covered
 
-MFA and custom challenges end in `AuthFailure.unsupportedChallenge`. Sign up,
-forgot password and hosted UI (OAuth) logins are not part of this package yet.
+MFA, passkeys, SMS codes and custom challenges end in
+`AuthFailure.unsupportedChallenge`. Sign up, forgot password and hosted UI
+(OAuth) logins are not part of this package yet.
 
 ## Migrating from an app's own AuthBloc
 

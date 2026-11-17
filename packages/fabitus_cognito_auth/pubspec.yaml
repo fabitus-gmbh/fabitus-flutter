@@ -1,6 +1,6 @@
 name: fabitus_cognito_auth
 description: >-
-  Username and password login against an AWS Cognito user pool, with session
+  Password or e-mail code login against an AWS Cognito user pool, with session
   restore, token refresh and the NEW_PASSWORD_REQUIRED challenge, for APIs
   behind an API Gateway Cognito authorizer.
 version: 0.3.0

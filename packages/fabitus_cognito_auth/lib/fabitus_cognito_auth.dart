@@ -1,11 +1,12 @@
-/// Username and password login against an AWS Cognito user pool, for apps
+/// Password or e-mail code login against an AWS Cognito user pool, for apps
 /// whose backend sits behind an API Gateway Cognito authorizer.
 ///
 /// [CognitoAuthClient] talks to Cognito; [AuthCubit] holds the session,
 /// restores it on start, refreshes it and signs out; [AuthSessionStore] decides
 /// where it survives a restart. Attaching the token to requests is left to a
 /// transport adapter such as `fabitus_cognito_auth_dio`, through
-/// [AuthTokenSource].
+/// [AuthTokenSource]. Besides the password, [AuthCubit.requestEmailCode] and
+/// [AuthCubit.submitEmailCode] sign in with a one-time code sent by e-mail.
 ///
 /// ```dart
 /// final auth = AuthCubit(

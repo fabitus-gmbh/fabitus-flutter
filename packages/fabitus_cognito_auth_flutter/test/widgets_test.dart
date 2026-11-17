@@ -119,6 +119,43 @@ void main() {
     });
   });
 
+  group('the e-mail code step', () {
+    Widget flow({bool withBuilder = true}) => SignInFlow(
+      signIn: (_) => SignInForm(builder: (_, _) => const Text('sign in')),
+      newPassword: (_) => NewPasswordForm(builder: (_, _) => const Text('new password')),
+      emailCode: withBuilder ? (_) => const Text('code') : null,
+    );
+
+    setUp(() => cognito.initiateAuth = (_) => FakeCognito.emailCodeChallenge());
+
+    testWidgets('shows the code builder while a code is awaited', (tester) async {
+      await _pump(tester, auth, flow());
+
+      await tester.runAsync(() => auth.requestEmailCode('jane@fabit.us'));
+      await tester.pump();
+      expect(find.text('code'), findsOneWidget);
+
+      auth.cancelEmailCode();
+      await _settle(tester);
+      expect(find.text('sign in'), findsOneWidget);
+    });
+
+    test('requesting a code stays on the address form', () {
+      expect(SignInFlow.isEmailCodeStep(const AuthInProgress(AuthStep.requestEmailCode)), isFalse);
+      expect(SignInFlow.isNewPasswordStep(const AuthInProgress(AuthStep.requestEmailCode)), isFalse);
+      expect(SignInFlow.isEmailCodeStep(const AuthInProgress(AuthStep.submitEmailCode)), isTrue);
+      expect(SignInFlow.isEmailCodeStep(const AuthInProgress(AuthStep.resendEmailCode)), isTrue);
+    });
+
+    testWidgets('keeps the sign in form without a code builder', (tester) async {
+      await _pump(tester, auth, flow(withBuilder: false));
+
+      await tester.runAsync(() => auth.requestEmailCode('jane@fabit.us'));
+      await tester.pump();
+      expect(find.text('sign in'), findsOneWidget);
+    });
+  });
+
   group('the new password step', () {
     late NewPasswordFormData form;
 
