@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0
+
+- `CognitoAuthClient.requestEmailCode` and `submitEmailCode`: sign in with a
+  one-time code sent by e-mail (Cognito choice-based authentication, `USER_AUTH`
+  with the `EMAIL_OTP` challenge), next to the password.
+- **Breaking:** `AuthFailure` gained `invalidCode` and `codeExpired`. An
+  exhaustive `switch` over it has to add the new cases.
+- `FakeCognito.emailCodeChallenge` and `FakeCognito.selectChallenge`.
+
 ## 0.2.0
 
 - **Breaking:** `AuthInProgress` names its `AuthStep` - `restore`, `signIn` or

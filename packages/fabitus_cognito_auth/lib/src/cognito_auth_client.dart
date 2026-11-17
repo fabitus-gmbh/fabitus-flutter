@@ -60,6 +60,34 @@ final class NewPasswordRequired extends SignInResult {
   final List<String> requiredAttributes;
 }
 
+/// A one-time code Cognito sent by e-mail, waiting to be answered.
+///
+/// Answer it with [CognitoAuthClient.submitEmailCode]. The challenge is bound
+/// to the Cognito auth session that sent the code and lives only in memory;
+/// after a restart, request a new code.
+final class EmailCodeChallenge {
+  /// Creates the challenge. Only [CognitoAuthClient] has a session to pass.
+  @internal
+  const EmailCodeChallenge({required this.username, required this.session, this.destination, String? answerUsername})
+    : answerUsername = answerUsername ?? username;
+
+  /// The address the code was requested for, as it was entered.
+  final String username;
+
+  /// Where Cognito sent the code, masked - such as `j***@f***` - or `null`
+  /// when Cognito did not say.
+  final String? destination;
+
+  /// The Cognito auth session the answer has to carry.
+  @internal
+  final String session;
+
+  /// The user name the answer has to carry: the one Cognito resolved, when it
+  /// named one, else [username].
+  @internal
+  final String answerUsername;
+}
+
 /// Signs in to a Cognito user pool and keeps the tokens fresh.
 ///
 /// Stateless: it hands out [AuthSession]s and forgets them. Holding on to the
@@ -67,6 +95,16 @@ final class NewPasswordRequired extends SignInResult {
 ///
 /// Every failure is thrown as an [AuthException]; nothing from the underlying
 /// Cognito library escapes.
+///
+/// Besides the password, [requestEmailCode] and [submitEmailCode] sign in with a
+/// one-time code sent by e-mail (choice-based authentication). That needs an
+/// app client with `ALLOW_USER_AUTH` and `ALLOW_REFRESH_TOKEN_AUTH`, a user pool
+/// on the Essentials or Plus tier with `EMAIL_OTP` among the allowed first
+/// factors of its sign-in policy, and Cognito sending e-mail through SES
+/// (`email_sending_account = DEVELOPER`). Users must not be required to use MFA.
+/// Set `PreventUserExistenceErrors` to `ENABLED` on the app client
+/// (`prevent_user_existence_errors = "ENABLED"`): without it Cognito reports an
+/// unknown address as such, and the form can be used to probe for accounts.
 ///
 /// ```dart
 /// final client = CognitoAuthClient(
@@ -152,6 +190,76 @@ class CognitoAuthClient {
     }
   }
 
+  /// Asks Cognito to e-mail a one-time code to [username].
+  ///
+  /// Returns the challenge to answer with [submitEmailCode]. Calling it again
+  /// sends a new code and starts a new challenge; the old one is of no use.
+  /// Throws an [AuthException] with [AuthFailure.unsupportedChallenge] when the
+  /// pool offers no e-mail code to that user, [AuthFailure.invalidCredentials]
+  /// for an unknown user or one that may not sign in, and
+  /// [AuthFailure.tooManyRequests] when Cognito throttles the requests.
+  Future<EmailCodeChallenge> requestEmailCode(String username) async {
+    try {
+      final response =
+          (await _pool.client!.request('InitiateAuth', {
+                'AuthFlow': 'USER_AUTH',
+                'ClientId': _pool.getClientId(),
+                'AuthParameters': {'USERNAME': username, 'PREFERRED_CHALLENGE': 'EMAIL_OTP'},
+              }))
+              as Map<String, dynamic>;
+      final challengeName = response['ChallengeName'] as String?;
+      if (challengeName != 'EMAIL_OTP') {
+        throw AuthException(AuthFailure.unsupportedChallenge, message: challengeName ?? 'No challenge');
+      }
+      final parameters = (response['ChallengeParameters'] as Map<String, dynamic>?) ?? const {};
+      return EmailCodeChallenge(
+        username: username,
+        destination: parameters['CODE_DELIVERY_DESTINATION'] as String?,
+        session: response['Session'] as String,
+        answerUsername: parameters['USERNAME'] as String?,
+      );
+    } on Object catch (e) {
+      throw _map(e);
+    }
+  }
+
+  /// Answers [challenge] with the [code] from the e-mail.
+  ///
+  /// Throws an [AuthException] with [AuthFailure.invalidCode] for a wrong code,
+  /// [AuthFailure.codeExpired] when the code or its auth session ran out, and
+  /// [AuthFailure.tooManyRequests] when Cognito throttles the user. A wrong code
+  /// does not end the challenge - Cognito allows a few attempts. After too many,
+  /// request a new code; whether Cognito then answers `tooManyRequests` or
+  /// `codeExpired` has not been verified against a real pool.
+  Future<AuthSession> submitEmailCode(EmailCodeChallenge challenge, String code) async {
+    try {
+      final response =
+          (await _pool.client!.request('RespondToAuthChallenge', {
+                'ClientId': _pool.getClientId(),
+                'ChallengeName': 'EMAIL_OTP',
+                'Session': challenge.session,
+                'ChallengeResponses': {'USERNAME': challenge.answerUsername, 'EMAIL_OTP_CODE': code},
+              }))
+              as Map<String, dynamic>;
+      final result = response['AuthenticationResult'] as Map<String, dynamic>?;
+      if (result == null) {
+        throw AuthException(
+          AuthFailure.unsupportedChallenge,
+          message: response['ChallengeName'] as String? ?? 'No authentication result',
+        );
+      }
+      return _sessionFrom(
+        CognitoUserSession(
+          CognitoIdToken(result['IdToken'] as String?),
+          CognitoAccessToken(result['AccessToken'] as String?),
+          refreshToken: result['RefreshToken'] == null ? null : CognitoRefreshToken(result['RefreshToken'] as String),
+        ),
+      );
+    } on Object catch (e) {
+      throw _map(e, answeringEmailCode: true);
+    }
+  }
+
   /// Exchanges the refresh token of [session] for fresh id and access tokens.
   ///
   /// Throws an [AuthException] with [AuthFailure.sessionExpired] when Cognito
@@ -194,6 +302,9 @@ class CognitoAuthClient {
     }
   }
 
+  static bool _mentionsSession(CognitoClientException error) =>
+      error.message?.toLowerCase().contains('session') ?? false;
+
   AuthSession _sessionFrom(CognitoUserSession? session, {String? fallbackRefreshToken}) {
     final idToken = session?.getIdToken().getJwtToken();
     final accessToken = session?.getAccessToken().getJwtToken();
@@ -208,14 +319,28 @@ class CognitoAuthClient {
   ///
   /// An authorization failure means something different at each step: during a
   /// sign in the credentials are wrong, while [answeringChallenge] the
-  /// challenge expired, and while [refreshing] the session is over.
-  AuthException _map(Object error, {bool refreshing = false, bool answeringChallenge = false}) {
+  /// challenge expired, while [refreshing] the session is over, and while
+  /// [answeringEmailCode] the code is wrong or the auth session ran out.
+  AuthException _map(
+    Object error, {
+    bool refreshing = false,
+    bool answeringChallenge = false,
+    bool answeringEmailCode = false,
+  }) {
     if (error is AuthException) return error;
     if (error is CognitoClientException) {
       final failure = switch (error.code) {
         'NotAuthorizedException' ||
         'UserNotFoundException' ||
         'RefreshTokenReuseException' when refreshing => AuthFailure.sessionExpired,
+        'CodeMismatchException' when answeringEmailCode => AuthFailure.invalidCode,
+        'ExpiredCodeException' when answeringEmailCode => AuthFailure.codeExpired,
+        'NotAuthorizedException' when answeringEmailCode && (error.message?.contains('attempts exceeded') ?? false) =>
+          AuthFailure.tooManyRequests,
+        'NotAuthorizedException' when answeringEmailCode && _mentionsSession(error) => AuthFailure.codeExpired,
+        // With user existence errors prevented, Cognito simulates the flow for
+        // unknown addresses, so a wrong code and an unknown user must look the same.
+        'NotAuthorizedException' || 'UserNotFoundException' when answeringEmailCode => AuthFailure.invalidCode,
         'NotAuthorizedException' when answeringChallenge => AuthFailure.noPendingChallenge,
         // Cognito reports a locked out user as NotAuthorized, told apart only by
         // the message.
